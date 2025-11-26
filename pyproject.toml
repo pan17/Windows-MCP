@@ -30,6 +30,9 @@ dependencies = [
     "uiautomation>=2.0.24",
 ]
 
+[project.scripts]
+windows-mcp = "main:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
