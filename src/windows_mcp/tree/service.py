@@ -23,13 +23,14 @@ if TYPE_CHECKING:
 class Tree:
     def __init__(self,desktop:'Desktop'):
         self.desktop=desktop
-        self.screen_size=self.desktop.get_screen_size()
+        # self.screen_size=self.desktop.get_screen_size()
+        left,top,width,height = self.desktop.get_virtual_screen_rect()
+        self.screen_box=BoundingBox(
+            top=top, left=left, bottom=top+height, right=left+width,
+            width=width, height=height 
+        )
         self.dom_info:Optional[DOMInfo]=None
         self.dom_bounding_box:BoundingBox=None
-        self.screen_box=BoundingBox(
-            top=0, left=0, bottom=self.screen_size.height, right=self.screen_size.width,
-            width=self.screen_size.width, height=self.screen_size.height 
-        )
 
     def get_state(self,active_app:App,other_apps:list[App],use_dom:bool=False)->TreeState:
         root=GetRootControl()
@@ -571,11 +572,18 @@ class Tree:
             color = get_random_color()
 
             # Scale and pad the bounding box coordinates
+            # We must offset by the screen_box top/left because the screenshot captures the entire virtual screen
+            # and (0,0) in the screenshot corresponds to (screen_box.left, screen_box.top) in global coords.
+            box_left = box.left - self.screen_box.left
+            box_top = box.top - self.screen_box.top
+            box_right = box.right - self.screen_box.left
+            box_bottom = box.bottom - self.screen_box.top
+
             adjusted_box = (
-                int(box.left * scale) + padding,
-                int(box.top * scale) + padding,
-                int(box.right * scale) + padding,
-                int(box.bottom * scale) + padding
+                int(box_left * scale) + padding,
+                int(box_top * scale) + padding,
+                int(box_right * scale) + padding,
+                int(box_bottom * scale) + padding
             )
             # Draw bounding box
             draw.rectangle(adjusted_box, outline=color, width=2)
