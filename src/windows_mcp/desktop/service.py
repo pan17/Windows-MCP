@@ -47,7 +47,8 @@ class Desktop:
         self.desktop_state=None
         
     def get_resolution(self)->tuple[int,int]:
-        return pg.size()
+        left,top,width,height=self.get_virtual_screen_rect()
+        return width,height
         
     def get_state(self,use_vision:bool=False,use_dom:bool=False,as_bytes:bool=False,scale:float=1.0)->DesktopState:
         sleep(0.1)
