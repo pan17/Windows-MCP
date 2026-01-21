@@ -255,7 +255,7 @@ def wait_tool(duration:int, ctx: Context = None)->str:
 
 @mcp.tool(
     name='Scrape-Tool',
-    description='Fetch content from a URL or the active browser tab. By default (use_dom=False), performs a lightweight HTTP request to the URL and returns markdown content of complete webpage. Note: Some websites may block automated HTTP requests. If this fails, open the page in a browser and retry with use_dom=True to extract visible text from the active tab\'s DOM within the viewport.',
+    description='Fetch content from a URL or the active browser tab. By default (use_dom=False), performs a lightweight HTTP request to the URL and returns markdown content of complete webpage. Note: Some websites may block automated HTTP requests. If this fails, open the page in a browser and retry with use_dom=True to extract visible text from the active tab\'s DOM within the viewport using the accessibility tree data.',
     annotations=ToolAnnotations(
         title="Scrape Tool",
         readOnlyHint=True,
@@ -272,10 +272,10 @@ def scrape_tool(url:str,use_dom:bool=False, ctx: Context = None)->str:
 
     desktop_state=desktop.get_state(use_vision=False,use_dom=use_dom)
     tree_state=desktop_state.tree_state
-    if not tree_state.dom_info:
+    if not tree_state.dom_node:
         return f'No DOM information found. Please open {url} in browser first.'
-    dom_info=tree_state.dom_info
-    vertical_scroll_percent=dom_info.vertical_scroll_percent
+    dom_node=tree_state.dom_node
+    vertical_scroll_percent=dom_node.vertical_scroll_percent
     content='\n'.join([node.text for node in tree_state.dom_informative_nodes])
     header_status = "Reached top" if vertical_scroll_percent <= 0 else "Scroll up to see more"
     footer_status = "Reached bottom" if vertical_scroll_percent >= 100 else "Scroll down to see more"
