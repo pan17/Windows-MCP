@@ -55,10 +55,10 @@ async def lifespan(app: FastMCP):
 mcp=FastMCP(name='windows-mcp',instructions=instructions,lifespan=lifespan)
 
 @mcp.tool(
-    name="App-Tool",
+    name="App",
     description="Manages Windows applications with three modes: 'launch' (start app by name), 'resize' (set window position/size using window_loc=[x,y] and window_size=[width,height]), 'switch' (activate app by name). Essential for application lifecycle management.",
     annotations=ToolAnnotations(
-        title="App Tool",
+        title="App",
         readOnlyHint=False,
         destructiveHint=True,
         idempotentHint=False,
@@ -70,10 +70,10 @@ def app_tool(mode:Literal['launch','resize','switch'],name:str|None=None,window_
     return desktop.app(mode,name,window_loc,window_size)
     
 @mcp.tool(
-    name='Powershell-Tool',
+    name='Shell',
     description='A comprehensive system tool for executing any PowerShell commands. Use it to navigate the file system, manage files and processes, and execute system-level operations. Capable of accessing web content (e.g., via Invoke-WebRequest), interacting with network resources, and performing complex administrative tasks. This tool provides full access to the underlying operating system capabilities, making it the primary interface for system automation, scripting, and deep system interaction.',
     annotations=ToolAnnotations(
-        title="Powershell Tool",
+        title="Shell",
         readOnlyHint=False,
         destructiveHint=True,
         idempotentHint=False,
@@ -86,10 +86,10 @@ def powershell_tool(command: str, ctx: Context = None) -> str:
     return f'Response: {response}\nStatus Code: {status_code}'
 
 @mcp.tool(
-    name='State-Tool',
+    name='Snapshot',
     description='Captures complete desktop state including: system language, focused/opened apps, interactive elements (buttons, text fields, links, menus with coordinates), and scrollable areas. Set use_vision=True to include screenshot. Set use_dom=True for browser content to get web page elements instead of browser UI. Always call this first to understand the current desktop state before taking actions.',
     annotations=ToolAnnotations(
-        title="State Tool",
+        title="Snapshot",
         readOnlyHint=True,
         destructiveHint=False,
         idempotentHint=True,
@@ -123,10 +123,10 @@ def state_tool(use_vision:bool=False,use_dom:bool=False, ctx: Context = None):
     ''')]+([Image(data=desktop_state.screenshot,format='png')] if use_vision else [])
 
 @mcp.tool(
-    name='Click-Tool',
+    name='Click',
     description='Performs mouse clicks at specified coordinates [x, y]. Supports button types: left (default), right (context menu), middle. Supports clicks: 1 (single), 2 (double), 3 (triple). Always use coordinates from State-Tool output to ensure accuracy.',
     annotations=ToolAnnotations(
-        title="Click Tool",
+        title="Click",
         readOnlyHint=False,
         destructiveHint=True,
         idempotentHint=False,
@@ -143,10 +143,10 @@ def click_tool(loc:list[int],button:Literal['left','right','middle']='left',clic
     return f'{num_clicks.get(clicks)} {button} clicked at ({x},{y}).'
 
 @mcp.tool(
-    name='Type-Tool',
+    name='Type',
     description='Types text at specified coordinates [x, y]. Set clear=True to clear existing text first (Ctrl+A then type), clear=False to append. Set press_enter=True to submit after typing. Always click on the target input field first to ensure focus.',
     annotations=ToolAnnotations(
-        title="Type Tool",
+        title="Type",
         readOnlyHint=False,
         destructiveHint=True,
         idempotentHint=False,
@@ -162,10 +162,10 @@ def type_tool(loc:list[int],text:str,clear:bool=False,press_enter:bool=False, ct
     return f'Typed {text} at ({x},{y}).'
 
 @mcp.tool(
-    name='Scroll-Tool',
+    name='Scroll',
     description='Scrolls at coordinates [x, y] or current mouse position if loc=None. Type: vertical (default) or horizontal. Direction: up/down for vertical, left/right for horizontal. wheel_times controls amount (1 wheel ≈ 3-5 lines). Use for navigating long content, lists, and web pages.',
     annotations=ToolAnnotations(
-        title="Scroll Tool",
+        title="Scroll",
         readOnlyHint=False,
         destructiveHint=False,
         idempotentHint=True,
@@ -182,10 +182,10 @@ def scroll_tool(loc:list[int]=None,type:Literal['horizontal','vertical']='vertic
     return f'Scrolled {type} {direction} by {wheel_times} wheel times'+f' at ({loc[0]},{loc[1]}).' if loc else ''
 
 @mcp.tool(
-    name='Move-Tool',
+    name='Move',
     description='Moves mouse cursor to coordinates [x, y]. Set drag=True to perform a drag-and-drop operation from the current mouse position to the target coordinates. Default (drag=False) is a simple cursor move (hover).',
     annotations=ToolAnnotations(
-        title="Move Tool",
+        title="Move",
         readOnlyHint=False,
         destructiveHint=False,
         idempotentHint=True,
@@ -205,10 +205,10 @@ def move_tool(loc:list[int], drag:bool=False, ctx: Context = None)->str:
         return f'Moved the mouse pointer to ({x},{y}).'
 
 @mcp.tool(
-    name='Shortcut-Tool',
+    name='Shortcut',
     description='Executes keyboard shortcuts using key combinations separated by +. Examples: "ctrl+c" (copy), "ctrl+v" (paste), "alt+tab" (switch apps), "win+r" (Run dialog), "win" (Start menu), "ctrl+shift+esc" (Task Manager). Use for quick actions and system commands.',
     annotations=ToolAnnotations(
-        title="Shortcut Tool",
+        title="Shortcut",
         readOnlyHint=False,
         destructiveHint=True,
         idempotentHint=False,
@@ -221,10 +221,10 @@ def shortcut_tool(shortcut:str, ctx: Context = None):
     return f"Pressed {shortcut}."
 
 @mcp.tool(
-    name='Wait-Tool',
+    name='Wait',
     description='Pauses execution for specified duration in seconds. Use when waiting for: applications to launch/load, UI animations to complete, page content to render, dialogs to appear, or between rapid actions. Helps ensure UI is ready before next interaction.',
     annotations=ToolAnnotations(
-        title="Wait Tool",
+        title="Wait",
         readOnlyHint=True,
         destructiveHint=False,
         idempotentHint=True,
@@ -237,10 +237,10 @@ def wait_tool(duration:int, ctx: Context = None)->str:
     return f'Waited for {duration} seconds.'
 
 @mcp.tool(
-    name='Scrape-Tool',
+    name='Scrape',
     description='Fetch content from a URL or the active browser tab. By default (use_dom=False), performs a lightweight HTTP request to the URL and returns markdown content of complete webpage. Note: Some websites may block automated HTTP requests. If this fails, open the page in a browser and retry with use_dom=True to extract visible text from the active tab\'s DOM within the viewport using the accessibility tree data.',
     annotations=ToolAnnotations(
-        title="Scrape Tool",
+        title="Scrape",
         readOnlyHint=True,
         destructiveHint=False,
         idempotentHint=True,

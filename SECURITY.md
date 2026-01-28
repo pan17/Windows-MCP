@@ -74,7 +74,7 @@ If you must use Windows-MCP on a regular system:
 2. **Regular Backups**: Maintain frequent, verified backups of all important data
 3. **Network Isolation**: Disconnect from production networks or use firewall rules
 4. **Supervised Operation**: Always monitor the agent's actions in real-time
-5. **Disable High-Risk Tools**: Remove or restrict access to PowerShell-Tool and other destructive tools
+5. **Disable High-Risk Tools**: Remove or restrict access to Shell and other destructive tools
 6. **Test First**: Thoroughly test workflows in a safe environment before production use
 
 ## Security Considerations
@@ -97,11 +97,11 @@ These tools can make permanent changes to your system:
 
 | Tool | Risk | Description |
 |------|------|-------------|
-| **Powershell-Tool** | Critical | Can execute arbitrary PowerShell commands, including system modifications, file deletions, and network operations |
-| **Click-Tool** | High | Can trigger destructive UI actions (delete confirmations, system dialogs) |
-| **Type-Tool** | High | Can overwrite text, potentially destroying data when `clear=True` |
-| **Drag-Tool** | High | Can move/reorganize files, potentially overwriting existing files |
-| **Shortcut-Tool** | High | Can execute destructive keyboard shortcuts (Ctrl+D delete, Alt+F4 close) |
+| **Shell** | Critical | Can execute arbitrary PowerShell commands, including system modifications, file deletions, and network operations |
+| **Click** | High | Can trigger destructive UI actions (delete confirmations, system dialogs) |
+| **Type** | High | Can overwrite text, potentially destroying data when `clear=True` |
+| **Drag** | High | Can move/reorganize files, potentially overwriting existing files |
+| **Shortcut** | High | Can execute destructive keyboard shortcuts (Ctrl+D delete, Alt+F4 close) |
 
 #### **Medium-Risk Tools** (Modifying but Non-Destructive)
 
@@ -109,9 +109,9 @@ These tools modify system state but are generally safe:
 
 | Tool | Risk | Description |
 |------|------|-------------|
-| **App-Tool** | Medium | Launches/manages applications but doesn't modify data |
-| **Scroll-Tool** | Low | Only changes viewport position |
-| **Move-Tool** | Low | Only positions mouse cursor |
+| **App** | Medium | Launches/manages applications but doesn't modify data |
+| **Scroll** | Low | Only changes viewport position |
+| **Move** | Low | Only positions mouse cursor |
 
 #### **Low-Risk Tools** (Read-Only)
 
@@ -119,9 +119,9 @@ These tools only read information without making changes:
 
 | Tool | Risk | Description |
 |------|------|-------------|
-| **State-Tool** | Safe | Only captures desktop state and screenshots |
-| **Wait-Tool** | Safe | Only pauses execution |
-| **Scrape-Tool** | Safe* | Fetches web content (*may expose browsing activity) |
+| **Snapshot** | Safe | Only captures desktop state and screenshots |
+| **Wait** | Safe | Only pauses execution |
+| **Scrape** | Safe* | Fetches web content (*may expose browsing activity) |
 
 ## Best Practices
 
@@ -140,7 +140,7 @@ These tools only read information without making changes:
 ### 3. **Monitor Tool Usage**
 
 - Regularly review logs to understand what actions are being performed
-- Be especially vigilant with high-risk tools (Powershell-Tool, Click-Tool, etc.)
+- Be especially vigilant with high-risk tools (Shell, Click, etc.)
 - Set up alerts for unexpected or suspicious activity
 
 ### 4. **Network Security**
@@ -152,8 +152,8 @@ These tools only read information without making changes:
 
 ### 5. **Data Protection**
 
-- Be aware that **State-Tool** captures screenshots that may contain sensitive information
-- **Scrape-Tool** may fetch content from untrusted websites
+- Be aware that **Snapshot** captures screenshots that may contain sensitive information
+- **Scrape** may fetch content from untrusted websites
 - Avoid using Windows-MCP in environments with highly sensitive data
 - Consider disabling screenshot functionality (`use_vision=False`) when handling confidential information
 

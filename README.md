@@ -63,7 +63,7 @@ mcp-name: io.github.CursorTouch/Windows-MCP
   Easily adapt or extend tools to suit your unique automation or AI integration needs.
 
 - **Real-Time Interaction**  
-  Typical latency between actions (e.g., from one mouse click to the next) ranges from **0.7 to 2.5 secs**, and may slightly vary based on the number of active applications and system load, also the inferencing speed of the llm.
+  Typical latency between actions (e.g., from one mouse click to the next) ranges from **0.4 to 1.2 secs**, and may slightly vary based on the number of active applications and system load, also the inferencing speed of the llm.
 
 - **DOM Mode for Browser Automation**  
   Special `use_dom=True` mode for State-Tool that focuses exclusively on web page content, filtering out browser UI elements for cleaner, more efficient web automation.
@@ -297,17 +297,17 @@ args=[
 
 MCP Client can access the following tools to interact with Windows:
 
-- `Click-Tool`: Click on the screen at the given coordinates.
-- `Type-Tool`: Type text on an element (optionally clears existing text).
-- `Scroll-Tool`: Scroll vertically or horizontally on the window or specific regions.
-- `Drag-Tool`: Drag from one point to another.
-- `Move-Tool`: Move mouse pointer.
-- `Shortcut-Tool`: Press keyboard shortcuts (`Ctrl+c`, `Alt+Tab`, etc).
-- `Wait-Tool`: Pause for a defined duration.
-- `State-Tool`: Combined snapshot of default language, browser, active apps and interactive, textual and scrollable elements along with screenshot of the desktop. Supports `use_dom=True` for browser content extraction (web page elements only) and `use_vision=True` for including screenshots.
-- `App-Tool`: To launch an application from the start menu, resize or move the window and switch between apps.
-- `Shell-Tool`: To execute PowerShell commands.
-- `Scrape-Tool`: To scrape the entire webpage for information.
+- `Click`: Click on the screen at the given coordinates.
+- `Type`: Type text on an element (optionally clears existing text).
+- `Scroll`: Scroll vertically or horizontally on the window or specific regions.
+- `Drag`: Drag from one point to another.
+- `Move`: Move mouse pointer.
+- `Shortcut`: Press keyboard shortcuts (`Ctrl+c`, `Alt+Tab`, etc).
+- `Wait`: Pause for a defined duration.
+- `Snapshot`: Combined snapshot of default language, browser, active apps and interactive, textual and scrollable elements along with screenshot of the desktop. Supports `use_dom=True` for browser content extraction (web page elements only) and `use_vision=True` for including screenshots.
+- `App`: To launch an application from the start menu, resize or move the window and switch between apps.
+- `Shell`: To execute PowerShell commands.
+- `Scrape`: To scrape the entire webpage for information.
 
 ## 🤝 Connect with Us
 Stay updated and join our community:
