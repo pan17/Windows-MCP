@@ -372,68 +372,11 @@ def clipboard_tool(mode: Literal['get', 'set'], text: str | None = None, ctx: Co
 @with_analytics(analytics, "Process-Tool")
 def process_tool(mode: Literal['list', 'kill'], name: str | None = None, pid: int | None = None, sort_by: Literal['memory', 'cpu', 'name'] = 'memory', limit: int = 20, force: bool | str = False, ctx: Context = None) -> str:
     try:
-        import psutil
         if mode == 'list':
-            procs = []
-            for p in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_info']):
-                try:
-                    info = p.info
-                    mem_mb = info['memory_info'].rss / (1024 * 1024) if info['memory_info'] else 0
-                    procs.append({
-                        'pid': info['pid'],
-                        'name': info['name'] or 'Unknown',
-                        'cpu': info['cpu_percent'] or 0,
-                        'mem_mb': round(mem_mb, 1)
-                    })
-                except (psutil.NoSuchProcess, psutil.AccessDenied):
-                    continue
-            if name:
-                from thefuzz import fuzz
-                procs = [p for p in procs if fuzz.partial_ratio(name.lower(), p['name'].lower()) > 60]
-            sort_key = {'memory': lambda x: x['mem_mb'], 'cpu': lambda x: x['cpu'], 'name': lambda x: x['name'].lower()}
-            procs.sort(key=sort_key.get(sort_by, sort_key['memory']), reverse=(sort_by != 'name'))
-            procs = procs[:limit]
-            if not procs:
-                return f'No processes found{f" matching {name}" if name else ""}.'
-            from tabulate import tabulate
-            table = tabulate(
-                [[p['pid'], p['name'], f"{p['cpu']:.1f}%", f"{p['mem_mb']:.1f} MB"] for p in procs],
-                headers=['PID', 'Name', 'CPU%', 'Memory'],
-                tablefmt='simple'
-            )
-            return f'Processes ({len(procs)} shown):\n{table}'
+            return desktop.list_processes(name=name, sort_by=sort_by, limit=limit)
         elif mode == 'kill':
             force = force is True or (isinstance(force, str) and force.lower() == 'true')
-            if pid is None and name is None:
-                return 'Error: Provide either pid or name parameter for kill mode.'
-            killed = []
-            if pid is not None:
-                try:
-                    p = psutil.Process(pid)
-                    pname = p.name()
-                    if force:
-                        p.kill()
-                    else:
-                        p.terminate()
-                    killed.append(f'{pname} (PID {pid})')
-                except psutil.NoSuchProcess:
-                    return f'No process with PID {pid} found.'
-                except psutil.AccessDenied:
-                    return f'Access denied to kill PID {pid}. Try running as administrator.'
-            else:
-                for p in psutil.process_iter(['pid', 'name']):
-                    try:
-                        if p.info['name'] and p.info['name'].lower() == name.lower():
-                            if force:
-                                p.kill()
-                            else:
-                                p.terminate()
-                            killed.append(f"{p.info['name']} (PID {p.info['pid']})")
-                    except (psutil.NoSuchProcess, psutil.AccessDenied):
-                        continue
-            if not killed:
-                return f'No process matching "{name}" found or access denied.'
-            return f'{"Force killed" if force else "Terminated"}: {", ".join(killed)}'
+            return desktop.kill_process(name=name, pid=pid, force=force)
         else:
             return 'Error: mode must be either "list" or "kill".'
     except Exception as e:
@@ -453,26 +396,7 @@ def process_tool(mode: Literal['list', 'kill'], name: str | None = None, pid: in
 @with_analytics(analytics, "SystemInfo-Tool")
 def system_info_tool(ctx: Context = None) -> str:
     try:
-        import psutil, platform
-        from datetime import datetime, timedelta
-        cpu_pct = psutil.cpu_percent(interval=1)
-        cpu_count = psutil.cpu_count()
-        mem = psutil.virtual_memory()
-        disk = psutil.disk_usage('C:\\')
-        boot = datetime.fromtimestamp(psutil.boot_time())
-        uptime = datetime.now() - boot
-        uptime_str = str(timedelta(seconds=int(uptime.total_seconds())))
-        net = psutil.net_io_counters()
-        return dedent(f'''System Information:
-  OS: {platform.system()} {platform.release()} ({platform.version()})
-  Machine: {platform.machine()}
-  
-  CPU: {cpu_pct}% ({cpu_count} cores)
-  Memory: {mem.percent}% used ({round(mem.used/1024**3,1)} / {round(mem.total/1024**3,1)} GB)
-  Disk C: {disk.percent}% used ({round(disk.used/1024**3,1)} / {round(disk.total/1024**3,1)} GB)
-  
-  Network: ↑ {round(net.bytes_sent/1024**2,1)} MB sent, ↓ {round(net.bytes_recv/1024**2,1)} MB received
-  Uptime: {uptime_str} (booted {boot.strftime("%Y-%m-%d %H:%M")})''')
+        return desktop.get_system_info()
     except Exception as e:
         return f'Error getting system info: {str(e)}'
 
@@ -490,36 +414,7 @@ def system_info_tool(ctx: Context = None) -> str:
 @with_analytics(analytics, "Notification-Tool")
 def notification_tool(title: str, message: str, ctx: Context = None) -> str:
     try:
-        from windows_mcp.desktop.service import Desktop
-        import subprocess
-        # Use PowerShell to send toast notification
-        ps_script = f'''
-        [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
-        [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
-        $template = @"
-        <toast>
-            <visual>
-                <binding template="ToastGeneric">
-                    <text>{title.replace('"', "'")}</text>
-                    <text>{message.replace('"', "'")}</text>
-                </binding>
-            </visual>
-        </toast>
-"@
-        $xml = New-Object Windows.Data.Xml.Dom.XmlDocument
-        $xml.LoadXml($template)
-        $notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("Windows MCP")
-        $toast = New-Object Windows.UI.Notifications.ToastNotification $xml
-        $notifier.Show($toast)
-        '''
-        result = subprocess.run(
-            ['powershell', '-ExecutionPolicy', 'Bypass', '-Command', ps_script],
-            capture_output=True, text=True, timeout=10
-        )
-        if result.returncode == 0:
-            return f'Notification sent: "{title}" - {message}'
-        else:
-            return f'Notification may have been sent. PowerShell output: {result.stderr[:200]}'
+        return desktop.send_notification(title, message)
     except Exception as e:
         return f'Error sending notification: {str(e)}'
 
@@ -537,9 +432,7 @@ def notification_tool(title: str, message: str, ctx: Context = None) -> str:
 @with_analytics(analytics, "LockScreen-Tool")
 def lock_screen_tool(ctx: Context = None) -> str:
     try:
-        import ctypes
-        ctypes.windll.user32.LockWorkStation()
-        return 'Screen locked.'
+        return desktop.lock_screen()
     except Exception as e:
         return f'Error locking screen: {str(e)}'
 

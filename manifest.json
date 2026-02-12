@@ -89,6 +89,26 @@
     {
       "name": "MultiEdit",
       "description": "Enters text into multiple input fields at specified coordinates [[x,y,text], ...]."
+    },
+    {
+      "name": "Clipboard",
+      "description": "Manages Windows clipboard operations. Use mode=\"get\" to read current clipboard content, mode=\"set\" to set clipboard text."
+    },
+    {
+      "name": "Process",
+      "description": "Manages system processes. Use mode=\"list\" to list running processes with filtering and sorting options. Use mode=\"kill\" to terminate processes by PID or name."
+    },
+    {
+      "name": "SystemInfo",
+      "description": "Returns system information including CPU usage, memory usage, disk space, network stats, and uptime. Useful for monitoring system health remotely."
+    },
+    {
+      "name": "Notification",
+      "description": "Sends a Windows toast notification with a title and message. Useful for alerting the user remotely."
+    },
+    {
+      "name": "LockScreen",
+      "description": "Locks the Windows workstation. Requires the user to enter their password to unlock."
     }
   ],
   "compatibility": {

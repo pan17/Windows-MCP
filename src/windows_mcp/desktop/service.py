@@ -729,6 +729,126 @@ class Desktop:
             executor.map(draw_annotation, range(len(nodes)), nodes)
         return padded_screenshot
     
+    def send_notification(self, title: str, message: str) -> str:
+        ps_script = f'''
+        [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
+        [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
+        $template = @"
+        <toast>
+            <visual>
+                <binding template="ToastGeneric">
+                    <text>{title.replace('"', "'")}</text>
+                    <text>{message.replace('"', "'")}</text>
+                </binding>
+            </visual>
+        </toast>
+"@
+        $xml = New-Object Windows.Data.Xml.Dom.XmlDocument
+        $xml.LoadXml($template)
+        $notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("Windows MCP")
+        $toast = New-Object Windows.UI.Notifications.ToastNotification $xml
+        $notifier.Show($toast)
+        '''
+        result = subprocess.run(
+            ['powershell', '-ExecutionPolicy', 'Bypass', '-Command', ps_script],
+            capture_output=True, text=True, timeout=10
+        )
+        if result.returncode == 0:
+            return f'Notification sent: "{title}" - {message}'
+        else:
+            return f'Notification may have been sent. PowerShell output: {result.stderr[:200]}'
+
+    def list_processes(self, name: str | None = None, sort_by: Literal['memory', 'cpu', 'name'] = 'memory', limit: int = 20) -> str:
+        import psutil
+        from tabulate import tabulate
+        procs = []
+        for p in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_info']):
+            try:
+                info = p.info
+                mem_mb = info['memory_info'].rss / (1024 * 1024) if info['memory_info'] else 0
+                procs.append({
+                    'pid': info['pid'],
+                    'name': info['name'] or 'Unknown',
+                    'cpu': info['cpu_percent'] or 0,
+                    'mem_mb': round(mem_mb, 1)
+                })
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        if name:
+            from fuzzywuzzy import fuzz
+            procs = [p for p in procs if fuzz.partial_ratio(name.lower(), p['name'].lower()) > 60]
+        sort_key = {'memory': lambda x: x['mem_mb'], 'cpu': lambda x: x['cpu'], 'name': lambda x: x['name'].lower()}
+        procs.sort(key=sort_key.get(sort_by, sort_key['memory']), reverse=(sort_by != 'name'))
+        procs = procs[:limit]
+        if not procs:
+            return f'No processes found{f" matching {name}" if name else ""}.'
+        table = tabulate(
+            [[p['pid'], p['name'], f"{p['cpu']:.1f}%", f"{p['mem_mb']:.1f} MB"] for p in procs],
+            headers=['PID', 'Name', 'CPU%', 'Memory'],
+            tablefmt='simple'
+        )
+        return f'Processes ({len(procs)} shown):\n{table}'
+
+    def kill_process(self, name: str | None = None, pid: int | None = None, force: bool = False) -> str:
+        import psutil
+        if pid is None and name is None:
+            return 'Error: Provide either pid or name parameter for kill mode.'
+        killed = []
+        if pid is not None:
+            try:
+                p = psutil.Process(pid)
+                pname = p.name()
+                if force:
+                    p.kill()
+                else:
+                    p.terminate()
+                killed.append(f'{pname} (PID {pid})')
+            except psutil.NoSuchProcess:
+                return f'No process with PID {pid} found.'
+            except psutil.AccessDenied:
+                return f'Access denied to kill PID {pid}. Try running as administrator.'
+        else:
+            for p in psutil.process_iter(['pid', 'name']):
+                try:
+                    if p.info['name'] and p.info['name'].lower() == name.lower():
+                        if force:
+                            p.kill()
+                        else:
+                            p.terminate()
+                        killed.append(f"{p.info['name']} (PID {p.info['pid']})")
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    continue
+        if not killed:
+            return f'No process matching "{name}" found or access denied.'
+        return f'{"Force killed" if force else "Terminated"}: {", ".join(killed)}'
+
+    def lock_screen(self) -> str:
+        ctypes.windll.user32.LockWorkStation()
+        return 'Screen locked.'
+
+    def get_system_info(self) -> str:
+        import psutil, platform
+        from datetime import datetime, timedelta
+        cpu_pct = psutil.cpu_percent(interval=1)
+        cpu_count = psutil.cpu_count()
+        mem = psutil.virtual_memory()
+        disk = psutil.disk_usage('C:\\')
+        boot = datetime.fromtimestamp(psutil.boot_time())
+        uptime = datetime.now() - boot
+        uptime_str = str(timedelta(seconds=int(uptime.total_seconds())))
+        net = psutil.net_io_counters()
+        from textwrap import dedent
+        return dedent(f'''System Information:
+  OS: {platform.system()} {platform.release()} ({platform.version()})
+  Machine: {platform.machine()}
+  
+  CPU: {cpu_pct}% ({cpu_count} cores)
+  Memory: {mem.percent}% used ({round(mem.used/1024**3,1)} / {round(mem.total/1024**3,1)} GB)
+  Disk C: {disk.percent}% used ({round(disk.used/1024**3,1)} / {round(disk.total/1024**3,1)} GB)
+  
+  Network: ↑ {round(net.bytes_sent/1024**2,1)} MB sent, ↓ {round(net.bytes_recv/1024**2,1)} MB received
+  Uptime: {uptime_str} (booted {boot.strftime("%Y-%m-%d %H:%M")})''')
+
     @contextmanager
     def auto_minimize(self):
         try:

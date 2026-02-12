@@ -307,6 +307,13 @@ MCP Client can access the following tools to interact with Windows:
 - `App`: To launch an application from the start menu, resize or move the window and switch between apps.
 - `Shell`: To execute PowerShell commands.
 - `Scrape`: To scrape the entire webpage for information.
+- `MultiSelect`: Select multiple items (files, folders, checkboxes) with optional Ctrl key.
+- `MultiEdit`: Enter text into multiple input fields at specified coordinates.
+- `Clipboard`: Read or set Windows clipboard content.
+- `Process`: List running processes or terminate them by PID or name.
+- `SystemInfo`: Get system information including CPU, memory, disk, network stats, and uptime.
+- `Notification`: Send a Windows toast notification with a title and message.
+- `LockScreen`: Lock the Windows workstation.
 
 ## 🤝 Connect with Us
 Stay updated and join our community:
