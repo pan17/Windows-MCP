@@ -1,4 +1,4 @@
-﻿'''
+"""
 uiautomation for Python 3.
 Author: yinkaisheng
 Source: https://github.com/yinkaisheng/Python-UIAutomation-for-Windows
@@ -9,30 +9,26 @@ Run 'automation.py -h' for help.
 
 uiautomation is shared under the Apache Licene 2.0.
 This means that the code can be freely copied and distributed, and costs nothing to use.
-'''
+"""
+
+from __future__ import annotations
 
 import os
 import sys
 import time
-import datetime
-import re
-import shlex
-import struct
-import atexit
-import threading
 import ctypes
 import ctypes.wintypes
 import comtypes
-from io import TextIOWrapper
-from typing import (Any, Callable, Dict, Generator, List, Tuple, Optional, Union, Sequence, TYPE_CHECKING)
+from typing import Any, List, TYPE_CHECKING
 from .enums import *
 from .core import *
 from .core import _AutomationClient
+
 if TYPE_CHECKING:
     from .controls import Control
 
 
-METRO_WINDOW_CLASS_NAME = 'Windows.UI.Core.CoreWindow'  # for Windows 8 and 8.1
+METRO_WINDOW_CLASS_NAME = "Windows.UI.Core.CoreWindow"  # for Windows 8 and 8.1
 SEARCH_INTERVAL = 0.5  # search control interval seconds
 MAX_MOVE_SECOND = 1  # simulate mouse move or drag max seconds
 TIME_OUT_SECOND = 10
@@ -100,70 +96,130 @@ def GetPatternIdInterface(patternId: int):
         debug = False
         # the following patterns doesn't exist on Windows 7 or lower
         try:
-            _PatternIdInterfaces[PatternId.AnnotationPattern] = _AutomationClient.instance().UIAutomationCore.IUIAutomationAnnotationPattern
-        except:
+            _PatternIdInterfaces[PatternId.AnnotationPattern] = (
+                _AutomationClient.instance().UIAutomationCore.IUIAutomationAnnotationPattern
+            )
+        except Exception:
             if debug:
-                Logger.WriteLine('UIAutomationCore does not have AnnotationPattern.', ConsoleColor.Yellow)
+                Logger.WriteLine(
+                    "UIAutomationCore does not have AnnotationPattern.",
+                    ConsoleColor.Yellow,
+                )
         try:
-            _PatternIdInterfaces[PatternId.CustomNavigationPattern] = _AutomationClient.instance().UIAutomationCore.IUIAutomationCustomNavigationPattern
-        except:
+            _PatternIdInterfaces[PatternId.CustomNavigationPattern] = (
+                _AutomationClient.instance().UIAutomationCore.IUIAutomationCustomNavigationPattern
+            )
+        except Exception:
             if debug:
-                Logger.WriteLine('UIAutomationCore does not have CustomNavigationPattern.', ConsoleColor.Yellow)
+                Logger.WriteLine(
+                    "UIAutomationCore does not have CustomNavigationPattern.",
+                    ConsoleColor.Yellow,
+                )
         try:
-            _PatternIdInterfaces[PatternId.DragPattern] = _AutomationClient.instance().UIAutomationCore.IUIAutomationDragPattern
-        except:
+            _PatternIdInterfaces[PatternId.DragPattern] = (
+                _AutomationClient.instance().UIAutomationCore.IUIAutomationDragPattern
+            )
+        except Exception:
             if debug:
-                Logger.WriteLine('UIAutomationCore does not have DragPattern.', ConsoleColor.Yellow)
+                Logger.WriteLine("UIAutomationCore does not have DragPattern.", ConsoleColor.Yellow)
         try:
-            _PatternIdInterfaces[PatternId.DropTargetPattern] = _AutomationClient.instance().UIAutomationCore.IUIAutomationDropTargetPattern
-        except:
+            _PatternIdInterfaces[PatternId.DropTargetPattern] = (
+                _AutomationClient.instance().UIAutomationCore.IUIAutomationDropTargetPattern
+            )
+        except Exception:
             if debug:
-                Logger.WriteLine('UIAutomationCore does not have DropTargetPattern.', ConsoleColor.Yellow)
+                Logger.WriteLine(
+                    "UIAutomationCore does not have DropTargetPattern.",
+                    ConsoleColor.Yellow,
+                )
         try:
-            _PatternIdInterfaces[PatternId.ObjectModelPattern] = _AutomationClient.instance().UIAutomationCore.IUIAutomationObjectModelPattern
-        except:
+            _PatternIdInterfaces[PatternId.ObjectModelPattern] = (
+                _AutomationClient.instance().UIAutomationCore.IUIAutomationObjectModelPattern
+            )
+        except Exception:
             if debug:
-                Logger.WriteLine('UIAutomationCore does not have ObjectModelPattern.', ConsoleColor.Yellow)
+                Logger.WriteLine(
+                    "UIAutomationCore does not have ObjectModelPattern.",
+                    ConsoleColor.Yellow,
+                )
         try:
-            _PatternIdInterfaces[PatternId.SpreadsheetItemPattern] = _AutomationClient.instance().UIAutomationCore.IUIAutomationSpreadsheetItemPattern
-        except:
+            _PatternIdInterfaces[PatternId.SpreadsheetItemPattern] = (
+                _AutomationClient.instance().UIAutomationCore.IUIAutomationSpreadsheetItemPattern
+            )
+        except Exception:
             if debug:
-                Logger.WriteLine('UIAutomationCore does not have SpreadsheetItemPattern.', ConsoleColor.Yellow)
+                Logger.WriteLine(
+                    "UIAutomationCore does not have SpreadsheetItemPattern.",
+                    ConsoleColor.Yellow,
+                )
         try:
-            _PatternIdInterfaces[PatternId.SpreadsheetPattern] = _AutomationClient.instance().UIAutomationCore.IUIAutomationSpreadsheetPattern
-        except:
+            _PatternIdInterfaces[PatternId.SpreadsheetPattern] = (
+                _AutomationClient.instance().UIAutomationCore.IUIAutomationSpreadsheetPattern
+            )
+        except Exception:
             if debug:
-                Logger.WriteLine('UIAutomationCore does not have SpreadsheetPattern.', ConsoleColor.Yellow)
+                Logger.WriteLine(
+                    "UIAutomationCore does not have SpreadsheetPattern.",
+                    ConsoleColor.Yellow,
+                )
         try:
-            _PatternIdInterfaces[PatternId.StylesPattern] = _AutomationClient.instance().UIAutomationCore.IUIAutomationStylesPattern
-        except:
+            _PatternIdInterfaces[PatternId.StylesPattern] = (
+                _AutomationClient.instance().UIAutomationCore.IUIAutomationStylesPattern
+            )
+        except Exception:
             if debug:
-                Logger.WriteLine('UIAutomationCore does not have StylesPattern.', ConsoleColor.Yellow)
+                Logger.WriteLine(
+                    "UIAutomationCore does not have StylesPattern.", ConsoleColor.Yellow
+                )
         try:
-            _PatternIdInterfaces[PatternId.SelectionPattern2] = _AutomationClient.instance().UIAutomationCore.IUIAutomationSelectionPattern2
-        except:
+            _PatternIdInterfaces[PatternId.SelectionPattern2] = (
+                _AutomationClient.instance().UIAutomationCore.IUIAutomationSelectionPattern2
+            )
+        except Exception:
             if debug:
-                Logger.WriteLine('UIAutomationCore does not have SelectionPattern2.', ConsoleColor.Yellow)
+                Logger.WriteLine(
+                    "UIAutomationCore does not have SelectionPattern2.",
+                    ConsoleColor.Yellow,
+                )
         try:
-            _PatternIdInterfaces[PatternId.TextChildPattern] = _AutomationClient.instance().UIAutomationCore.IUIAutomationTextChildPattern
-        except:
+            _PatternIdInterfaces[PatternId.TextChildPattern] = (
+                _AutomationClient.instance().UIAutomationCore.IUIAutomationTextChildPattern
+            )
+        except Exception:
             if debug:
-                Logger.WriteLine('UIAutomationCore does not have TextChildPattern.', ConsoleColor.Yellow)
+                Logger.WriteLine(
+                    "UIAutomationCore does not have TextChildPattern.",
+                    ConsoleColor.Yellow,
+                )
         try:
-            _PatternIdInterfaces[PatternId.TextEditPattern] = _AutomationClient.instance().UIAutomationCore.IUIAutomationTextEditPattern
-        except:
+            _PatternIdInterfaces[PatternId.TextEditPattern] = (
+                _AutomationClient.instance().UIAutomationCore.IUIAutomationTextEditPattern
+            )
+        except Exception:
             if debug:
-                Logger.WriteLine('UIAutomationCore does not have TextEditPattern.', ConsoleColor.Yellow)
+                Logger.WriteLine(
+                    "UIAutomationCore does not have TextEditPattern.",
+                    ConsoleColor.Yellow,
+                )
         try:
-            _PatternIdInterfaces[PatternId.TextPattern2] = _AutomationClient.instance().UIAutomationCore.IUIAutomationTextPattern2
-        except:
+            _PatternIdInterfaces[PatternId.TextPattern2] = (
+                _AutomationClient.instance().UIAutomationCore.IUIAutomationTextPattern2
+            )
+        except Exception:
             if debug:
-                Logger.WriteLine('UIAutomationCore does not have TextPattern2.', ConsoleColor.Yellow)
+                Logger.WriteLine(
+                    "UIAutomationCore does not have TextPattern2.", ConsoleColor.Yellow
+                )
         try:
-            _PatternIdInterfaces[PatternId.TransformPattern2] = _AutomationClient.instance().UIAutomationCore.IUIAutomationTransformPattern2
-        except:
+            _PatternIdInterfaces[PatternId.TransformPattern2] = (
+                _AutomationClient.instance().UIAutomationCore.IUIAutomationTransformPattern2
+            )
+        except Exception:
             if debug:
-                Logger.WriteLine('UIAutomationCore does not have TransformPattern2.', ConsoleColor.Yellow)
+                Logger.WriteLine(
+                    "UIAutomationCore does not have TransformPattern2.",
+                    ConsoleColor.Yellow,
+                )
     return _PatternIdInterfaces[patternId]
 
 
@@ -173,7 +229,7 @@ Refer https://docs.microsoft.com/en-us/previous-versions//dd319586(v=vs.85)
 """
 
 
-class AnnotationPattern():
+class AnnotationPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationannotationpattern"""
         self.pattern = pattern
@@ -216,7 +272,7 @@ class AnnotationPattern():
         return self.pattern.CurrentDateTime
 
     @property
-    def Target(self) -> 'Control':
+    def Target(self) -> "Control":
         """
         Property Target.
         Call IUIAutomationAnnotationPattern::get_CurrentTarget.
@@ -227,12 +283,12 @@ class AnnotationPattern():
         return Control.CreateControlFromElement(ele)
 
 
-class CustomNavigationPattern():
+class CustomNavigationPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationcustomnavigationpattern"""
         self.pattern = pattern
 
-    def Navigate(self, direction: int) -> 'Control':
+    def Navigate(self, direction: int) -> "Control":
         """
         Call IUIAutomationCustomNavigationPattern::Navigate.
         Get the next control in the specified direction within the logical UI tree.
@@ -244,7 +300,7 @@ class CustomNavigationPattern():
         return Control.CreateControlFromElement(ele)
 
 
-class DockPattern():
+class DockPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationdockpattern"""
         self.pattern = pattern
@@ -271,7 +327,7 @@ class DockPattern():
         return ret
 
 
-class DragPattern():
+class DragPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationdragpattern"""
         self.pattern = pattern
@@ -308,7 +364,7 @@ class DragPattern():
         """
         return bool(self.pattern.CurrentIsGrabbed)
 
-    def GetGrabbedItems(self) -> List['Control']:
+    def GetGrabbedItems(self) -> List["Control"]:
         """
         Call IUIAutomationDragPattern::GetCurrentGrabbedItems.
         Return List[Control], a list of `Control` subclasses that represent the full set of items
@@ -327,7 +383,7 @@ class DragPattern():
         return []
 
 
-class DropTargetPattern():
+class DropTargetPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationdroptargetpattern"""
         self.pattern = pattern
@@ -356,7 +412,7 @@ class DropTargetPattern():
         return self.pattern.CurrentDropTargetEffects
 
 
-class ExpandCollapsePattern():
+class ExpandCollapsePattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationexpandcollapsepattern"""
         self.pattern = pattern
@@ -382,7 +438,7 @@ class ExpandCollapsePattern():
             ret = self.pattern.Collapse() == S_OK
             time.sleep(waitTime)
             return ret
-        except:
+        except Exception:
             pass
         return False
 
@@ -397,12 +453,12 @@ class ExpandCollapsePattern():
             ret = self.pattern.Expand() == S_OK
             time.sleep(waitTime)
             return ret
-        except:
+        except Exception:
             pass
         return False
 
 
-class GridItemPattern():
+class GridItemPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationgriditempattern"""
         self.pattern = pattern
@@ -428,7 +484,7 @@ class GridItemPattern():
         return self.pattern.CurrentColumnSpan
 
     @property
-    def ContainingGrid(self) -> 'Control':
+    def ContainingGrid(self) -> "Control":
         """
         Property ContainingGrid.
         Call IUIAutomationGridItemPattern::get_CurrentContainingGrid.
@@ -458,7 +514,7 @@ class GridItemPattern():
         return self.pattern.CurrentRowSpan
 
 
-class GridPattern():
+class GridPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationgridpattern"""
         self.pattern = pattern
@@ -483,7 +539,7 @@ class GridPattern():
         """
         return self.pattern.CurrentRowCount
 
-    def GetItem(self, row: int, column: int) -> 'Control':
+    def GetItem(self, row: int, column: int) -> "Control":
         """
         Call IUIAutomationGridPattern::GetItem.
         Return `Control` subclass, a control representing an item in the grid.
@@ -492,7 +548,7 @@ class GridPattern():
         return Control.CreateControlFromElement(self.pattern.GetItem(row, column))
 
 
-class InvokePattern():
+class InvokePattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationinvokepattern"""
         self.pattern = pattern
@@ -510,12 +566,12 @@ class InvokePattern():
         return ret
 
 
-class ItemContainerPattern():
+class ItemContainerPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationitemcontainerpattern"""
         self.pattern = pattern
 
-    def FindItemByProperty(self, control: 'Control', propertyId: int, propertyValue) -> 'Control':
+    def FindItemByProperty(self, control: "Control", propertyId: int, propertyValue) -> "Control":
         """
         Call IUIAutomationItemContainerPattern::FindItemByProperty.
         control: `Control` or its subclass.
@@ -528,7 +584,7 @@ class ItemContainerPattern():
         return Control.CreateControlFromElement(ele)
 
 
-class LegacyIAccessiblePattern():
+class LegacyIAccessiblePattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationlegacyiaccessiblepattern"""
         self.pattern = pattern
@@ -591,7 +647,7 @@ class LegacyIAccessiblePattern():
         Return str, the Microsoft Active Accessibility name property of the element.
         Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nf-uiautomationclient-iuiautomationlegacyiaccessiblepattern-get_currentname
         """
-        return self.pattern.CurrentName or ''    # CurrentName may be None
+        return self.pattern.CurrentName or ""  # CurrentName may be None
 
     @property
     def Role(self) -> int:
@@ -635,7 +691,7 @@ class LegacyIAccessiblePattern():
         time.sleep(waitTime)
         return ret
 
-    def GetSelection(self) -> List['Control']:
+    def GetSelection(self) -> List["Control"]:
         """
         Call IUIAutomationLegacyIAccessiblePattern::GetCurrentSelection.
         Return List[Control], a list of `Control` subclasses,
@@ -689,7 +745,7 @@ class LegacyIAccessiblePattern():
         return ret
 
 
-class MultipleViewPattern():
+class MultipleViewPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationmultipleviewpattern"""
         self.pattern = pattern
@@ -732,7 +788,7 @@ class MultipleViewPattern():
         return self.pattern.SetCurrentView(view) == S_OK
 
 
-class ObjectModelPattern():
+class ObjectModelPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationobjectmodelpattern"""
         self.pattern = pattern
@@ -746,7 +802,7 @@ class ObjectModelPattern():
     #     return self.pattern.GetUnderlyingObjectModel()
 
 
-class RangeValuePattern():
+class RangeValuePattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationrangevaluepattern"""
         self.pattern = pattern
@@ -827,7 +883,7 @@ class RangeValuePattern():
         return ret
 
 
-class ScrollItemPattern():
+class ScrollItemPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationscrollitempattern"""
         self.pattern = pattern
@@ -844,7 +900,7 @@ class ScrollItemPattern():
         return ret
 
 
-class ScrollPattern():
+class ScrollPattern:
     NoScrollValue = -1
 
     def __init__(self, pattern=None):
@@ -911,7 +967,12 @@ class ScrollPattern():
         """
         return self.pattern.CurrentVerticalViewSize
 
-    def Scroll(self, horizontalAmount: int, verticalAmount: int, waitTime: float = OPERATION_WAIT_TIME) -> bool:
+    def Scroll(
+        self,
+        horizontalAmount: int,
+        verticalAmount: int,
+        waitTime: float = OPERATION_WAIT_TIME,
+    ) -> bool:
         """
         Call IUIAutomationScrollPattern::Scroll.
         Scroll the visible region of the content area horizontally and vertically.
@@ -925,7 +986,12 @@ class ScrollPattern():
         time.sleep(waitTime)
         return ret
 
-    def SetScrollPercent(self, horizontalPercent: float, verticalPercent: float, waitTime: float = OPERATION_WAIT_TIME) -> bool:
+    def SetScrollPercent(
+        self,
+        horizontalPercent: float,
+        verticalPercent: float,
+        waitTime: float = OPERATION_WAIT_TIME,
+    ) -> bool:
         """
         Call IUIAutomationScrollPattern::SetScrollPercent.
         Set the horizontal and vertical scroll positions as a percentage of the total content area within the UI Automation element.
@@ -940,7 +1006,7 @@ class ScrollPattern():
         return ret
 
 
-class SelectionItemPattern():
+class SelectionItemPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationselectionitempattern"""
         self.pattern = pattern
@@ -968,7 +1034,7 @@ class SelectionItemPattern():
         return bool(self.pattern.CurrentIsSelected)
 
     @property
-    def SelectionContainer(self) -> 'Control':
+    def SelectionContainer(self) -> "Control":
         """
         Property SelectionContainer.
         Call IUIAutomationScrollPattern::get_CurrentSelectionContainer.
@@ -1003,7 +1069,7 @@ class SelectionItemPattern():
         return ret
 
 
-class SelectionPattern():
+class SelectionPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationselectionpattern"""
         self.pattern = pattern
@@ -1028,7 +1094,7 @@ class SelectionPattern():
         """
         return bool(self.pattern.CurrentIsSelectionRequired)
 
-    def GetSelection(self) -> List['Control']:
+    def GetSelection(self) -> List["Control"]:
         """
         Call IUIAutomationSelectionPattern::GetCurrentSelection.
         Return List[Control], a list of `Control` subclasses, the selected elements in the container..
@@ -1050,6 +1116,7 @@ class SelectionPattern2(SelectionPattern):
     """
     Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationselectionpattern2
     """
+
     def __init__(self, pattern=None):
         super().__init__(pattern)
 
@@ -1092,7 +1159,7 @@ class SelectionPattern2(SelectionPattern):
         return self.pattern.CurrentItemCount
 
 
-class SpreadsheetItemPattern():
+class SpreadsheetItemPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationspreadsheetitempattern"""
         self.pattern = pattern
@@ -1107,7 +1174,7 @@ class SpreadsheetItemPattern():
         """
         return self.pattern.CurrentFormula
 
-    def GetAnnotationObjects(self) -> List['Control']:
+    def GetAnnotationObjects(self) -> List["Control"]:
         """
         Call IUIAutomationSelectionPattern::GetCurrentAnnotationObjects.
         Return List[Control], a list of `Control` subclasses representing the annotations associated with this spreadsheet cell.
@@ -1134,12 +1201,12 @@ class SpreadsheetItemPattern():
         return self.pattern.GetCurrentAnnotationTypes()
 
 
-class SpreadsheetPattern():
+class SpreadsheetPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationspreadsheetpattern"""
         self.pattern = pattern
 
-    def GetItemByName(self, name: str) -> 'Control':
+    def GetItemByName(self, name: str) -> "Control":
         """
         Call IUIAutomationSpreadsheetPattern::GetItemByName.
         name: str.
@@ -1150,7 +1217,7 @@ class SpreadsheetPattern():
         return Control.CreateControlFromElement(element=ele)
 
 
-class StylesPattern():
+class StylesPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationstylespattern"""
         self.pattern = pattern
@@ -1216,7 +1283,7 @@ class StylesPattern():
         return self.pattern.CurrentStyleName
 
 
-class SynchronizedInputPattern():
+class SynchronizedInputPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationsynchronizedinputpattern"""
         self.pattern = pattern
@@ -1240,12 +1307,12 @@ class SynchronizedInputPattern():
         return self.pattern.StartListening() == S_OK
 
 
-class TableItemPattern():
+class TableItemPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtableitempattern"""
         self.pattern = pattern
 
-    def GetColumnHeaderItems(self) -> List['Control']:
+    def GetColumnHeaderItems(self) -> List["Control"]:
         """
         Call IUIAutomationTableItemPattern::GetCurrentColumnHeaderItems.
         Return List[Control], a list of `Control` subclasses, the column headers associated with a table item or cell.
@@ -1262,7 +1329,7 @@ class TableItemPattern():
             return controls
         return []
 
-    def GetRowHeaderItems(self) -> List['Control']:
+    def GetRowHeaderItems(self) -> List["Control"]:
         """
         Call IUIAutomationTableItemPattern::GetCurrentRowHeaderItems.
         Return List[Control], a list of `Control` subclasses, the row headers associated with a table item or cell.
@@ -1280,7 +1347,7 @@ class TableItemPattern():
         return []
 
 
-class TablePattern():
+class TablePattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtablepattern"""
         self.pattern = pattern
@@ -1295,7 +1362,7 @@ class TablePattern():
         """
         return self.pattern.CurrentRowOrColumnMajor
 
-    def GetColumnHeaders(self) -> List['Control']:
+    def GetColumnHeaders(self) -> List["Control"]:
         """
         Call IUIAutomationTablePattern::GetCurrentColumnHeaders.
         Return List[Control], a list of `Control` subclasses, representing all the column headers in a table..
@@ -1312,7 +1379,7 @@ class TablePattern():
             return controls
         return []
 
-    def GetRowHeaders(self) -> List['Control']:
+    def GetRowHeaders(self) -> List["Control"]:
         """
         Call IUIAutomationTablePattern::GetCurrentRowHeaders.
         Return List[Control], a list of `Control` subclasses, representing all the row headers in a table.
@@ -1330,7 +1397,7 @@ class TablePattern():
         return []
 
 
-class TextRange():
+class TextRange:
     def __init__(self, textRange=None):
         """
         Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtextrange
@@ -1349,7 +1416,7 @@ class TextRange():
         time.sleep(waitTime)
         return ret
 
-    def Clone(self) -> 'TextRange':
+    def Clone(self) -> "TextRange":
         """
         Call IUIAutomationTextRange::Clone.
         return `TextRange`, identical to the original and inheriting all properties of the original.
@@ -1357,7 +1424,7 @@ class TextRange():
         """
         return TextRange(textRange=self.textRange.Clone())
 
-    def Compare(self, textRange: 'TextRange') -> bool:
+    def Compare(self, textRange: "TextRange") -> bool:
         """
         Call IUIAutomationTextRange::Compare.
         textRange: `TextRange`.
@@ -1366,7 +1433,9 @@ class TextRange():
         """
         return bool(self.textRange.Compare(textRange.textRange))
 
-    def CompareEndpoints(self, srcEndPoint: int, textRange: 'TextRange', targetEndPoint: int) -> int:
+    def CompareEndpoints(
+        self, srcEndPoint: int, textRange: "TextRange", targetEndPoint: int
+    ) -> int:
         """
         Call IUIAutomationTextRange::CompareEndpoints.
         srcEndPoint: int, a value in class `TextPatternRangeEndpoint`.
@@ -1394,7 +1463,7 @@ class TextRange():
         time.sleep(waitTime)
         return ret
 
-    def FindAttribute(self, textAttributeId: int, val, backward: bool) -> Optional['TextRange']:
+    def FindAttribute(self, textAttributeId: int, val, backward: bool) -> "TextRange" | None:
         """
         Call IUIAutomationTextRange::FindAttribute.
         textAttributeID: int, a value in class `TextAttributeId`.
@@ -1408,7 +1477,7 @@ class TextRange():
             return TextRange(textRange=textRange)
         return None
 
-    def FindText(self, text: str, backward: bool, ignoreCase: bool) -> Optional['TextRange']:
+    def FindText(self, text: str, backward: bool, ignoreCase: bool) -> "TextRange" | None:
         """
         Call IUIAutomationTextRange::FindText.
         text: str,
@@ -1445,12 +1514,16 @@ class TextRange():
         floats = self.textRange.GetBoundingRectangles()
         rects = []
         for i in range(len(floats) // 4):
-            rect = Rect(int(floats[i * 4]), int(floats[i * 4 + 1]),
-                        int(floats[i * 4]) + int(floats[i * 4 + 2]), int(floats[i * 4 + 1]) + int(floats[i * 4 + 3]))
+            rect = Rect(
+                int(floats[i * 4]),
+                int(floats[i * 4 + 1]),
+                int(floats[i * 4]) + int(floats[i * 4 + 2]),
+                int(floats[i * 4 + 1]) + int(floats[i * 4 + 3]),
+            )
             rects.append(rect)
         return rects
 
-    def GetChildren(self) -> List['Control']:
+    def GetChildren(self) -> List["Control"]:
         """
         Call IUIAutomationTextRange::GetChildren.
         textAttributeId: int, a value in class `TextAttributeId`.
@@ -1468,7 +1541,7 @@ class TextRange():
             return controls
         return []
 
-    def GetEnclosingControl(self) -> 'Control':
+    def GetEnclosingControl(self) -> "Control":
         """
         Call IUIAutomationTextRange::GetEnclosingElement.
         Return `Control` subclass, the innermost UI Automation element that encloses the text range.
@@ -1501,7 +1574,13 @@ class TextRange():
         time.sleep(waitTime)
         return ret
 
-    def MoveEndpointByRange(self, srcEndPoint: int, textRange: 'TextRange', targetEndPoint: int, waitTime: float = OPERATION_WAIT_TIME) -> bool:
+    def MoveEndpointByRange(
+        self,
+        srcEndPoint: int,
+        textRange: "TextRange",
+        targetEndPoint: int,
+        waitTime: float = OPERATION_WAIT_TIME,
+    ) -> bool:
         """
         Call IUIAutomationTextRange::MoveEndpointByRange.
         Move one endpoint of the current text range to the specified endpoint of a second text range.
@@ -1512,11 +1591,20 @@ class TextRange():
         Return bool, True if succeed otherwise False.
         Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nf-uiautomationclient-iuiautomationtextrange-moveendpointbyrange
         """
-        ret = self.textRange.MoveEndpointByRange(srcEndPoint, textRange.textRange, targetEndPoint) == S_OK
+        ret = (
+            self.textRange.MoveEndpointByRange(srcEndPoint, textRange.textRange, targetEndPoint)
+            == S_OK
+        )
         time.sleep(waitTime)
         return ret
 
-    def MoveEndpointByUnit(self, endPoint: int, unit: int, count: int, waitTime: float = OPERATION_WAIT_TIME) -> int:
+    def MoveEndpointByUnit(
+        self,
+        endPoint: int,
+        unit: int,
+        count: int,
+        waitTime: float = OPERATION_WAIT_TIME,
+    ) -> int:
         """
         Call IUIAutomationTextRange::MoveEndpointByUnit.
         Move one endpoint of the text range the specified number of text units within the document range.
@@ -1573,13 +1661,13 @@ class TextRange():
         return ret
 
 
-class TextChildPattern():
+class TextChildPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtextchildpattern"""
         self.pattern = pattern
 
     @property
-    def TextContainer(self) -> 'Control':
+    def TextContainer(self) -> "Control":
         """
         Property TextContainer.
         Call IUIAutomationSelectionContainer::get_TextContainer.
@@ -1599,12 +1687,12 @@ class TextChildPattern():
         return TextRange(self.pattern.TextRange)
 
 
-class TextEditPattern():
+class TextEditPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtexteditpattern"""
         self.pattern = pattern
 
-    def GetActiveComposition(self) -> Optional[TextRange]:
+    def GetActiveComposition(self) -> TextRange | None:
         """
         Call IUIAutomationTextEditPattern::GetActiveComposition.
         Return `TextRange` or None, the active composition.
@@ -1615,7 +1703,7 @@ class TextEditPattern():
             return TextRange(textRange=textRange)
         return None
 
-    def GetConversionTarget(self) -> Optional[TextRange]:
+    def GetConversionTarget(self) -> TextRange | None:
         """
         Call IUIAutomationTextEditPattern::GetConversionTarget.
         Return `TextRange` or None, the current conversion target range..
@@ -1627,7 +1715,7 @@ class TextEditPattern():
         return None
 
 
-class TextPattern():
+class TextPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtextpattern"""
         self.pattern = pattern
@@ -1683,7 +1771,7 @@ class TextPattern():
             return textRanges
         return []
 
-    def RangeFromChild(self, child) -> Optional[TextRange]:
+    def RangeFromChild(self, child) -> TextRange | None:
         """
         Call IUIAutomationTextPattern::RangeFromChild.
         child: `Control` or its subclass.
@@ -1696,7 +1784,7 @@ class TextPattern():
             return TextRange(textRange=textRange)
         return None
 
-    def RangeFromPoint(self, x: int, y: int) -> Optional[TextRange]:
+    def RangeFromPoint(self, x: int, y: int) -> TextRange | None:
         """
         Call IUIAutomationTextPattern::RangeFromPoint.
         child: `Control` or its subclass.
@@ -1709,13 +1797,13 @@ class TextPattern():
         return None
 
 
-class TextPattern2():
+class TextPattern2:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtextpattern2"""
         self.pattern = pattern
 
 
-class TogglePattern():
+class TogglePattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtogglepattern"""
         self.pattern = pattern
@@ -1750,7 +1838,7 @@ class TogglePattern():
         return False
 
 
-class TransformPattern():
+class TransformPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtransformpattern"""
         self.pattern = pattern
@@ -1827,7 +1915,7 @@ class TransformPattern():
         return ret
 
 
-class TransformPattern2():
+class TransformPattern2:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationtransformpattern2"""
         self.pattern = pattern
@@ -1899,7 +1987,7 @@ class TransformPattern2():
         return ret
 
 
-class ValuePattern():
+class ValuePattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationvaluepattern"""
         self.pattern = pattern
@@ -1938,7 +2026,7 @@ class ValuePattern():
         return ret
 
 
-class VirtualizedItemPattern():
+class VirtualizedItemPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationvirtualizeditempattern"""
         self.pattern = pattern
@@ -1956,7 +2044,7 @@ class VirtualizedItemPattern():
         return ret
 
 
-class WindowPattern():
+class WindowPattern:
     def __init__(self, pattern=None):
         """Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nn-uiautomationclient-iuiautomationwindowpattern"""
         self.pattern = pattern
@@ -2048,14 +2136,14 @@ class WindowPattern():
         return ret
 
     def WaitForInputIdle(self, milliseconds: int) -> bool:
-        '''
+        """
         Call IUIAutomationWindowPattern::WaitForInputIdle.
         Cause the calling code to block for the specified time or
             until the associated process enters an idle state, whichever completes first.
         milliseconds: int.
         Return bool, True if succeed otherwise False.
         Refer https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nf-uiautomationclient-iuiautomationwindowpattern-waitforinputidle
-        '''
+        """
         return self.pattern.WaitForInputIdle(milliseconds) == S_OK
 
 
@@ -2102,5 +2190,3 @@ def CreatePattern(patternId: int, pattern: ctypes.POINTER(comtypes.IUnknown)):
     subPattern = pattern.QueryInterface(GetPatternIdInterface(patternId))
     if subPattern:
         return PatternConstructors[patternId](pattern=subPattern)
-
-

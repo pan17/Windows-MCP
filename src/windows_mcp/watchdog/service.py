@@ -2,22 +2,23 @@
 Unified WatchDog Service for monitoring UI Automation events.
 Allows single instantiation to handle multiple monitors (Focus, Structure) safely in one STA thread.
 """
+
 from windows_mcp.uia.core import _AutomationClient
 from windows_mcp.uia.enums import TreeScope
 from threading import Thread, Event
 import comtypes.client
 import comtypes
 import logging
-import weakref
 
 from .event_handlers import (
     FocusChangedEventHandler,
     StructureChangedEventHandler,
-    PropertyChangedEventHandler
+    PropertyChangedEventHandler,
 )
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
+
 
 class WatchDog:
     def __init__(self):
@@ -33,7 +34,7 @@ class WatchDog:
         self._property_callback = None
         self._property_element = None
         self._property_ids = None
-        
+
         # Internal state for tracking active handlers
         self._focus_handler = None
         self._structure_handler = None
@@ -55,7 +56,7 @@ class WatchDog:
             return
         self.is_running.set()
         self.thread = Thread(target=self._run, name="WatchDogThread")
-        self.thread.daemon = True 
+        self.thread.daemon = True
         self.thread.start()
 
     def stop(self):
@@ -78,7 +79,7 @@ class WatchDog:
 
     def set_property_callback(self, callback, element=None, property_ids=None):
         """Set the callback for property changes. Pass None to disable.
-        Optionally specify an element to watch (defaults to RootElement) 
+        Optionally specify an element to watch (defaults to RootElement)
         and a list of property IDs to monitor."""
         self._property_callback = callback
         self._property_element = element
@@ -105,14 +106,18 @@ class WatchDog:
 
                 # --- Structure Monitoring ---
                 # Check if we need to UNREGISTER because configuration changed or disabled
-                config_changed = (self._structure_element != self._active_structure_element)
-                
-                should_be_active = (self._structure_callback is not None)
-                is_active = (self._structure_handler is not None)
+                config_changed = self._structure_element != self._active_structure_element
+
+                should_be_active = self._structure_callback is not None
+                is_active = self._structure_handler is not None
 
                 if is_active and (not should_be_active or config_changed):
                     try:
-                        target = self._active_structure_element if self._active_structure_element else self.uia.GetRootElement()
+                        target = (
+                            self._active_structure_element
+                            if self._active_structure_element
+                            else self.uia.GetRootElement()
+                        )
                         self.uia.RemoveStructureChangedEventHandler(target, self._structure_handler)
                     except Exception as e:
                         logger.debug(f"Failed to remove structure handler: {e}")
@@ -122,28 +127,39 @@ class WatchDog:
 
                 if should_be_active and not is_active:
                     try:
-                        target = self._structure_element if self._structure_element else self.uia.GetRootElement()
+                        target = (
+                            self._structure_element
+                            if self._structure_element
+                            else self.uia.GetRootElement()
+                        )
                         scope = TreeScope.TreeScope_Subtree
-                        
+
                         self._structure_handler = StructureChangedEventHandler(self)
-                        self.uia.AddStructureChangedEventHandler(target, scope, None, self._structure_handler)
+                        self.uia.AddStructureChangedEventHandler(
+                            target, scope, None, self._structure_handler
+                        )
                         self._active_structure_element = target
                     except Exception as e:
                         logger.debug(f"Failed to add structure handler: {e}")
 
                 # --- Property Monitoring ---
-                config_changed = (self._property_element != self._active_property_element) or \
-                               (self._property_ids != self._active_property_ids)
-                
-                should_be_active = (self._property_callback is not None)
-                is_active = (self._property_handler is not None)
+                config_changed = (self._property_element != self._active_property_element) or (
+                    self._property_ids != self._active_property_ids
+                )
+
+                should_be_active = self._property_callback is not None
+                is_active = self._property_handler is not None
 
                 if is_active and (not should_be_active or config_changed):
                     try:
-                        target = self._active_property_element if self._active_property_element else self.uia.GetRootElement()
+                        target = (
+                            self._active_property_element
+                            if self._active_property_element
+                            else self.uia.GetRootElement()
+                        )
                         self.uia.RemovePropertyChangedEventHandler(target, self._property_handler)
                     except Exception as e:
-                        print(f"Failed to remove property handler: {e}")
+                        logger.debug(f"Failed to remove property handler: {e}")
                     self._property_handler = None
                     self._active_property_element = None
                     self._active_property_ids = None
@@ -151,49 +167,70 @@ class WatchDog:
 
                 if should_be_active and not is_active:
                     try:
-                        target = self._property_element if self._property_element else self.uia.GetRootElement()
+                        target = (
+                            self._property_element
+                            if self._property_element
+                            else self.uia.GetRootElement()
+                        )
                         scope = TreeScope.TreeScope_Subtree
-                        
+
                         # Monitor common properties if none specified
                         # 30005: Name, 30045: Value, 30093: LegacyIAccessibleVal, 30128: ToggleState
-                        p_ids = self._property_ids if self._property_ids else [30005, 30045, 30093, 30128]
-                        
+                        p_ids = (
+                            self._property_ids
+                            if self._property_ids
+                            else [30005, 30045, 30093, 30128]
+                        )
+
                         self._property_handler = PropertyChangedEventHandler(self)
-                        self.uia.AddPropertyChangedEventHandler(target, scope, None, self._property_handler, p_ids)
-                        
+                        self.uia.AddPropertyChangedEventHandler(
+                            target, scope, None, self._property_handler, p_ids
+                        )
+
                         self._active_property_element = target
                         self._active_property_ids = p_ids
                     except Exception as e:
-                        print(f"Failed to add property handler: {e}")
+                        logger.debug(f"Failed to add property handler: {e}")
 
                 # Pump events for this thread
                 comtypes.client.PumpEvents(0.1)
 
         except Exception as e:
-            print(f"WatchDogService died: {e}")
+            logger.error(f"WatchDogService died: {e}")
         finally:
             # Cleanup handlers on exit
             if self._focus_handler:
-                try: 
+                try:
                     self.uia.RemoveFocusChangedEventHandler(self._focus_handler)
-                except: pass
+                except Exception:
+                    pass
                 self._focus_handler = None
-            
+
             if self._structure_handler:
                 try:
-                    target = self._active_structure_element if self._active_structure_element else self.uia.GetRootElement()
+                    target = (
+                        self._active_structure_element
+                        if self._active_structure_element
+                        else self.uia.GetRootElement()
+                    )
                     self.uia.RemoveStructureChangedEventHandler(target, self._structure_handler)
-                except: pass
+                except Exception:
+                    pass
                 self._structure_handler = None
                 self._active_structure_element = None
 
             if self._property_handler:
                 try:
-                    target = self._active_property_element if self._active_property_element else self.uia.GetRootElement()
+                    target = (
+                        self._active_property_element
+                        if self._active_property_element
+                        else self.uia.GetRootElement()
+                    )
                     self.uia.RemovePropertyChangedEventHandler(target, self._property_handler)
-                except: pass
+                except Exception:
+                    pass
                 self._property_handler = None
                 self._active_property_element = None
                 self._active_property_ids = None
-            
+
             comtypes.CoUninitialize()
