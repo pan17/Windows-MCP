@@ -11,6 +11,8 @@ uiautomation is shared under the Apache Licene 2.0.
 This means that the code can be freely copied and distributed, and costs nothing to use.
 """
 
+from __future__ import annotations
+
 import os
 import sys
 import time
