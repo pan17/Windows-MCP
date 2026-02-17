@@ -26,11 +26,11 @@
 mcp-name: io.github.CursorTouch/Windows-MCP
 
 ## Updates
-- Windows-MCP reached `1M+ Users` in [Claude Desktop Extensiosn](https://claude.ai/directory). 
+- Added VM support for Windows-MCP. Check (windowsmcp.io)[https://windowsmcp.io/] for more details.
+- Windows-MCP reached `2M+ Users` in [Claude Desktop Extensiosn](https://claude.ai/directory). 
+- Try out [🪟Windows-Use](https://pypi.org/project/windows-use/), an agent built using Windows-MCP.
 - Windows-MCP is now available on [PyPI](https://pypi.org/project/windows-mcp/) (thus supports `uvx windows-mcp`)
 - Windows-MCP is added to [MCP Registry](https://github.com/modelcontextprotocol/registry)
-- Try out [🪟Windows-Use](https://pypi.org/project/windows-use/), an agent built using Windows-MCP.
-- Windows-MCP is now featured as Desktop Extension in `Claude Desktop`.
 
 ### Supported Operating Systems
 
