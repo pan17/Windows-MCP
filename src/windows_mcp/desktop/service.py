@@ -804,20 +804,6 @@ class Desktop:
             # Fallback to standard DPI if system call fails
             return 1.0
 
-    def get_ocr_text(self, screenshot: Image.Image = None) -> str:
-        """Extracts text from a screenshot using Tesseract OCR."""
-        try:
-            import pytesseract
-        except ImportError:
-            return "Error: pytesseract is not installed. Install it with: pip install pytesseract"
-        try:
-            if screenshot is None:
-                screenshot = self.get_screenshot()
-            text = pytesseract.image_to_string(screenshot)
-            return text.strip() if text.strip() else "No text detected by OCR."
-        except Exception as e:
-            return f"Error performing OCR: {str(e)}"
-
     def get_screen_size(self) -> Size:
         width, height = uia.GetVirtualScreenSize()
         return Size(width=width, height=height)

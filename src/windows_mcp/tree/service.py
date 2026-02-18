@@ -74,7 +74,7 @@ class Tree:
         else:
             windows_handles = other_windows_handles
 
-        interactive_nodes, scrollable_nodes, dom_informative_nodes = self.get_windowwise_nodes(
+        interactive_nodes, scrollable_nodes, dom_informative_nodes = self.get_window_wise_nodes(
             windows_handles=windows_handles,
             active_window_flag=active_window_flag,
             use_dom=use_dom,
@@ -126,7 +126,7 @@ class Tree:
         logger.info(f"Tree State capture took {end_time - start_time:.2f} seconds")
         return self.tree_state
 
-    def get_windowwise_nodes(
+    def get_window_wise_nodes(
         self,
         windows_handles: list[int],
         active_window_flag: bool,

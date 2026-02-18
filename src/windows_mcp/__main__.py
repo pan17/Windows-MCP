@@ -107,7 +107,7 @@ def powershell_tool(command: str, timeout: int = 30, ctx: Context = None) -> str
 
 @mcp.tool(
     name='File',
-    description="Manages file system operations with eight modes: 'read' (read text file contents with optional line offset/limit), 'write' (create or overwrite a file, set append=True to append), 'copy' (copy file or directory to destination), 'move' (move or rename file/directory), 'delete' (delete file or directory, set recursive=True for non-empty dirs), 'list' (list directory contents with optional pattern filter), 'search' (find files matching a glob pattern), 'info' (get file/directory metadata like size, dates, type).",
+    description="Manages file system operations with eight modes: 'read' (read text file contents with optional line offset/limit), 'write' (create or overwrite a file, set append=True to append), 'copy' (copy file or directory to destination), 'move' (move or rename file/directory), 'delete' (delete file or directory, set recursive=True for non-empty dirs), 'list' (list directory contents with optional pattern filter), 'search' (find files matching a glob pattern), 'info' (get file/directory metadata like size, dates, type). Relative paths are resolved from the user's Desktop folder. Use absolute paths to access other locations.",
     annotations=ToolAnnotations(
         title="File",
         readOnlyHint=False,
@@ -133,6 +133,13 @@ def file_tool(
     ctx: Context = None
 ) -> str:
     try:
+        from platformdirs import user_desktop_dir
+        default_dir = user_desktop_dir()
+        if not os.path.isabs(path):
+            path = os.path.join(default_dir, path)
+        if destination and not os.path.isabs(destination):
+            destination = os.path.join(default_dir, destination)
+
         recursive = recursive is True or (isinstance(recursive, str) and recursive.lower() == 'true')
         append = append is True or (isinstance(append, str) and append.lower() == 'true')
         overwrite = overwrite is True or (isinstance(overwrite, str) and overwrite.lower() == 'true')
@@ -170,7 +177,7 @@ def file_tool(
 
 @mcp.tool(
     name='Snapshot',
-    description='Captures complete desktop state including: system language, focused/opened windows, interactive elements (buttons, text fields, links, menus with coordinates), and scrollable areas. Set use_vision=True to include screenshot. Set use_dom=True for browser content to get web page elements instead of browser UI. Set use_ocr=True to extract visible text from the screen using Tesseract OCR (useful when accessibility tree misses text, e.g. images, remote desktop, custom-rendered UIs). Always call this first to understand the current desktop state before taking actions.',
+    description='Captures complete desktop state including: system language, focused/opened windows, interactive elements (buttons, text fields, links, menus with coordinates), and scrollable areas. Set use_vision=True to include screenshot. Set use_dom=True for browser content to get web page elements instead of browser UI. Always call this first to understand the current desktop state before taking actions.',
     annotations=ToolAnnotations(
         title="Snapshot",
         readOnlyHint=True,
@@ -180,20 +187,17 @@ def file_tool(
     ),
 )
 @with_analytics(analytics, "State-Tool")
-def state_tool(use_vision:bool|str=False,use_dom:bool|str=False,use_ocr:bool|str=False, ctx: Context = None):
+def state_tool(use_vision:bool|str=False,use_dom:bool|str=False, ctx: Context = None):
     try:
         use_vision = use_vision is True or (isinstance(use_vision, str) and use_vision.lower() == 'true')
         use_dom = use_dom is True or (isinstance(use_dom, str) and use_dom.lower() == 'true')
-        use_ocr = use_ocr is True or (isinstance(use_ocr, str) and use_ocr.lower() == 'true')
         
         # Calculate scale factor to cap resolution at 1080p (1920x1080)
         scale_width = MAX_IMAGE_WIDTH / screen_size.width if screen_size.width > MAX_IMAGE_WIDTH else 1.0
         scale_height = MAX_IMAGE_HEIGHT / screen_size.height if screen_size.height > MAX_IMAGE_HEIGHT else 1.0
-        scale = min(scale_width, scale_height)  # Use the smaller scale to ensure both dimensions fit
+        scale = min(scale_width, scale_height)
         
-        # If OCR is requested but vision is not, we still need a screenshot for OCR
-        use_annotation = use_ocr is False
-        desktop_state=desktop.get_state(use_vision=use_vision or use_ocr,use_annotation=use_annotation,use_dom=use_dom,as_bytes=False,scale=scale)
+        desktop_state=desktop.get_state(use_vision=use_vision,use_dom=use_dom,as_bytes=False,scale=scale)
         
         interactive_elements=desktop_state.tree_state.interactive_elements_to_string()
         scrollable_elements=desktop_state.tree_state.scrollable_elements_to_string()
@@ -201,11 +205,6 @@ def state_tool(use_vision:bool|str=False,use_dom:bool|str=False,use_ocr:bool|str
         active_window=desktop_state.active_window_to_string()
         active_desktop=desktop_state.active_desktop_to_string()
         all_desktops=desktop_state.desktops_to_string()
-        
-        # Run OCR on the screenshot if requested
-        ocr_text = None
-        if use_ocr and desktop_state.screenshot is not None:
-            ocr_text = desktop.get_ocr_text(screenshot=desktop_state.screenshot)
         
         # Convert screenshot to bytes for vision response
         screenshot_bytes = None
@@ -216,11 +215,6 @@ def state_tool(use_vision:bool|str=False,use_dom:bool|str=False,use_ocr:bool|str
             buffered.close()
     except Exception as e:
         return [f'Error capturing desktop state: {str(e)}. Please try again.']
-    
-    ocr_section = f"""
-    OCR Extracted Text:
-    {ocr_text}
-    """ if use_ocr and ocr_text else ""
     
     return [dedent(f'''
     Active Desktop:
@@ -239,8 +233,7 @@ def state_tool(use_vision:bool|str=False,use_dom:bool|str=False,use_ocr:bool|str
     {interactive_elements or "No interactive elements found."}
 
     List of Scrollable Elements:
-    {scrollable_elements or 'No scrollable elements found.'}
-    {ocr_section}''')]+([Image(data=screenshot_bytes,format='png')] if use_vision and screenshot_bytes else [])
+    {scrollable_elements or 'No scrollable elements found.'}''')]+([Image(data=screenshot_bytes,format='png')] if use_vision and screenshot_bytes else [])
 
 @mcp.tool(
     name="Click",
