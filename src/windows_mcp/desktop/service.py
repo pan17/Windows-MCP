@@ -51,6 +51,17 @@ class Desktop:
         self.tree = Tree(self)
         self.desktop_state = None
 
+    @staticmethod
+    def _ps_quote(value: str) -> str:
+        """Wrap a value in a PowerShell single-quoted string literal.
+
+        Single-quoted strings in PowerShell are truly literal -- they do NOT
+        expand variables ($env:X), subexpressions ($(…)), or escape sequences.
+        The only character that needs escaping is the single quote itself,
+        which is doubled ('').
+        """
+        return "'" + value.replace("'", "''") + "'"
+
     def get_state(
         self,
         use_annotation: bool | str = True,
@@ -324,15 +335,12 @@ class Desktop:
 
         pid = 0
         if os.path.exists(appid) or "\\" in appid:
-            # It's a file path, we can try to get the PID using PassThru
-            # Escape any single quotes and wrap in single quotes for PowerShell safety
-            safe_appid = appid.replace("'", "''")
-            command = f"Start-Process '{safe_appid}' -PassThru | Select-Object -ExpandProperty Id"
+            safe = self._ps_quote(appid)
+            command = f"Start-Process {safe} -PassThru | Select-Object -ExpandProperty Id"
             response, status = self.execute_command(command)
             if status == 0 and response.strip().isdigit():
                 pid = int(response.strip())
         else:
-            # It's an AUMID (Store App) - validate it only contains expected characters
             if (
                 not appid.replace("\\", "")
                 .replace("_", "")
@@ -341,7 +349,8 @@ class Desktop:
                 .isalnum()
             ):
                 return (f"Invalid app identifier: {appid}", 1, 0)
-            command = f'Start-Process "shell:AppsFolder\\{appid}"'
+            safe = self._ps_quote(f"shell:AppsFolder\\{appid}")
+            command = f"Start-Process {safe}"
             response, status = self.execute_command(command)
 
         return response, status, pid
@@ -884,21 +893,14 @@ class Desktop:
     def send_notification(self, title: str, message: str) -> str:
         from xml.sax.saxutils import escape as xml_escape
 
-        # Sanitize for XML context (escape <, >, &, ", ')
         safe_title = xml_escape(title, {'"': '&quot;', "'": '&apos;'})
         safe_message = xml_escape(message, {'"': '&quot;', "'": '&apos;'})
 
-        # Escape for PowerShell single-quoted strings (only single quotes need doubling)
-        safe_title_ps = safe_title.replace("'", "''")
-        safe_message_ps = safe_message.replace("'", "''")
-
-        # Build script using PS variables assigned via single-quoted strings
-        # (single-quoted strings do NOT expand $() or backtick sequences)
         ps_script = (
             "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null\n"
             "[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null\n"
-            f"$notifTitle = '{safe_title_ps}'\n"
-            f"$notifMessage = '{safe_message_ps}'\n"
+            f"$notifTitle = {self._ps_quote(safe_title)}\n"
+            f"$notifMessage = {self._ps_quote(safe_message)}\n"
             '$template = @"\n'
             "<toast>\n"
             "    <visual>\n"
@@ -1032,22 +1034,24 @@ class Desktop:
   Uptime: {uptime_str} (booted {boot.strftime("%Y-%m-%d %H:%M")})""")
 
     def registry_get(self, path: str, name: str) -> str:
-        safe_path = path.replace("'", "''")
-        safe_name = name.replace("'", "''")
-        command = f"Get-ItemProperty -Path '{safe_path}' -Name '{safe_name}' | Select-Object -ExpandProperty '{safe_name}'"
+        q_path = self._ps_quote(path)
+        q_name = self._ps_quote(name)
+        command = f"Get-ItemProperty -Path {q_path} -Name {q_name} | Select-Object -ExpandProperty {q_name}"
         response, status = self.execute_command(command)
         if status != 0:
             return f'Error reading registry: {response.strip()}'
         return f'Registry value [{path}] "{name}" = {response.strip()}'
 
     def registry_set(self, path: str, name: str, value: str, reg_type: str = 'String') -> str:
-        safe_path = path.replace("'", "''")
-        safe_name = name.replace("'", "''")
-        safe_value = value.replace("'", "''")
-        # Ensure the key exists first, then set the property
+        q_path = self._ps_quote(path)
+        q_name = self._ps_quote(name)
+        q_value = self._ps_quote(value)
+        allowed_types = {"String", "ExpandString", "Binary", "DWord", "MultiString", "QWord"}
+        if reg_type not in allowed_types:
+            return f"Error: invalid registry type '{reg_type}'. Allowed: {', '.join(sorted(allowed_types))}"
         command = (
-            f"if (-not (Test-Path '{safe_path}')) {{ New-Item -Path '{safe_path}' -Force | Out-Null }}; "
-            f"Set-ItemProperty -Path '{safe_path}' -Name '{safe_name}' -Value '{safe_value}' -Type {reg_type} -Force"
+            f"if (-not (Test-Path {q_path})) {{ New-Item -Path {q_path} -Force | Out-Null }}; "
+            f"Set-ItemProperty -Path {q_path} -Name {q_name} -Value {q_value} -Type {reg_type} -Force"
         )
         response, status = self.execute_command(command)
         if status != 0:
@@ -1055,28 +1059,27 @@ class Desktop:
         return f'Registry value [{path}] "{name}" set to "{value}" (type: {reg_type}).'
 
     def registry_delete(self, path: str, name: str | None = None) -> str:
-        safe_path = path.replace("'", "''")
+        q_path = self._ps_quote(path)
         if name:
-            safe_name = name.replace("'", "''")
-            command = f"Remove-ItemProperty -Path '{safe_path}' -Name '{safe_name}' -Force"
+            q_name = self._ps_quote(name)
+            command = f"Remove-ItemProperty -Path {q_path} -Name {q_name} -Force"
             response, status = self.execute_command(command)
             if status != 0:
                 return f'Error deleting registry value: {response.strip()}'
             return f'Registry value [{path}] "{name}" deleted.'
         else:
-            command = f"Remove-Item -Path '{safe_path}' -Recurse -Force"
+            command = f"Remove-Item -Path {q_path} -Recurse -Force"
             response, status = self.execute_command(command)
             if status != 0:
                 return f'Error deleting registry key: {response.strip()}'
             return f'Registry key [{path}] deleted.'
 
     def registry_list(self, path: str) -> str:
-        safe_path = path.replace("'", "''")
-        # Get values and sub-keys
+        q_path = self._ps_quote(path)
         command = (
-            f"$values = (Get-ItemProperty -Path '{safe_path}' -ErrorAction Stop | "
+            f"$values = (Get-ItemProperty -Path {q_path} -ErrorAction Stop | "
             f"Select-Object * -ExcludeProperty PS* | Format-List | Out-String).Trim(); "
-            f"$subkeys = (Get-ChildItem -Path '{safe_path}' -ErrorAction SilentlyContinue | "
+            f"$subkeys = (Get-ChildItem -Path {q_path} -ErrorAction SilentlyContinue | "
             f"Select-Object -ExpandProperty PSChildName) -join \"`n\"; "
             f"if ($values) {{ Write-Output \"Values:`n$values\" }}; "
             f"if ($subkeys) {{ Write-Output \"`nSub-Keys:`n$subkeys\" }}; "
