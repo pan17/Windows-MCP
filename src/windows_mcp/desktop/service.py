@@ -4,7 +4,6 @@ from windows_mcp.vdm.core import (
     is_window_on_current_desktop,
 )
 from windows_mcp.desktop.views import DesktopState, Window, Browser, Status, Size
-from windows_mcp.desktop.config import PROCESS_PER_MONITOR_DPI_AWARE
 from windows_mcp.tree.views import BoundingBox, TreeElementNode
 from concurrent.futures import ThreadPoolExecutor
 from PIL import ImageGrab, ImageFont, ImageDraw, Image
@@ -14,7 +13,7 @@ from contextlib import contextmanager
 from typing import Literal
 from markdownify import markdownify
 from thefuzz import process
-from time import time
+from time import sleep, time
 from psutil import Process
 import win32process
 import subprocess
@@ -33,16 +32,36 @@ import random
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-try:
-    ctypes.windll.shcore.SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE)
-except Exception:
-    ctypes.windll.user32.SetProcessDPIAware()
-
 import windows_mcp.uia as uia  # noqa: E402
-import pyautogui as pg  # noqa: E402
 
-pg.FAILSAFE = False
-pg.PAUSE = 1.0
+# Key name aliases for shortcut keys that differ from UIA SpecialKeyNames
+_KEY_ALIASES = {
+    "backspace": "Back",
+    "capslock": "Capital",
+    "scrolllock": "Scroll",
+    "windows": "Win",
+    "command": "Win",
+    "option": "Alt",
+}
+
+
+def _escape_text_for_sendkeys(text: str) -> str:
+    """Escape special characters so uia.SendKeys types them correctly."""
+    result = []
+    for ch in text:
+        if ch == "{":
+            result.append("{{}")
+        elif ch == "}":
+            result.append("{}}")
+        elif ch == "\n":
+            result.append("{Enter}")
+        elif ch == "\t":
+            result.append("{Tab}")
+        elif ch == "\r":
+            continue
+        else:
+            result.append(ch)
+    return "".join(result)
 
 
 class Desktop:
@@ -50,6 +69,17 @@ class Desktop:
         self.encoding = getpreferredencoding()
         self.tree = Tree(self)
         self.desktop_state = None
+
+    @staticmethod
+    def _ps_quote(value: str) -> str:
+        """Wrap a value in a PowerShell single-quoted string literal.
+
+        Single-quoted strings in PowerShell are truly literal -- they do NOT
+        expand variables ($env:X), subexpressions ($(…)), or escape sequences.
+        The only character that needs escaping is the single quote itself,
+        which is doubled ('').
+        """
+        return "'" + value.replace("'", "''") + "'"
 
     def get_state(
         self,
@@ -143,30 +173,56 @@ class Desktop:
             return Status.HIDDEN
 
     def get_cursor_location(self) -> tuple[int, int]:
-        position = pg.position()
-        return (position.x, position.y)
+        return uia.GetCursorPos()
 
     def get_element_under_cursor(self) -> uia.Control:
         return uia.ControlFromCursor()
 
     def get_apps_from_start_menu(self) -> dict[str, str]:
+        """Get installed apps. Tries Get-StartApps first, falls back to shortcut scanning."""
         command = "Get-StartApps | ConvertTo-Csv -NoTypeInformation"
         apps_info, status = self.execute_command(command)
 
-        if status != 0 or not apps_info:
-            logger.error(f"Failed to get apps from start menu: {apps_info}")
-            return {}
+        if status == 0 and apps_info and apps_info.strip():
+            try:
+                reader = csv.DictReader(io.StringIO(apps_info.strip()))
+                apps = {
+                    row.get("Name", "").lower(): row.get("AppID", "")
+                    for row in reader
+                    if row.get("Name") and row.get("AppID")
+                }
+                if apps:
+                    return apps
+            except Exception as e:
+                logger.warning(f"Error parsing Get-StartApps output: {e}")
 
-        try:
-            reader = csv.DictReader(io.StringIO(apps_info.strip()))
-            return {
-                row.get("Name", "").lower(): row.get("AppID", "")
-                for row in reader
-                if row.get("Name") and row.get("AppID")
-            }
-        except Exception as e:
-            logger.error(f"Error parsing start menu apps: {e}")
-            return {}
+        # Fallback: scan Start Menu shortcut folders (works on all Windows versions)
+        logger.info("Get-StartApps unavailable, falling back to Start Menu folder scan")
+        return self._get_apps_from_shortcuts()
+
+    def _get_apps_from_shortcuts(self) -> dict[str, str]:
+        """Scan Start Menu folders for .lnk shortcuts as a fallback for Get-StartApps."""
+        import glob
+
+        apps = {}
+        start_menu_paths = [
+            os.path.join(
+                os.environ.get("PROGRAMDATA", r"C:\ProgramData"),
+                r"Microsoft\Windows\Start Menu\Programs",
+            ),
+            os.path.join(
+                os.environ.get("APPDATA", ""),
+                r"Microsoft\Windows\Start Menu\Programs",
+            ),
+        ]
+        for base_path in start_menu_paths:
+            if not os.path.isdir(base_path):
+                continue
+            for lnk_path in glob.glob(os.path.join(base_path, "**", "*.lnk"), recursive=True):
+                name = os.path.splitext(os.path.basename(lnk_path))[0].lower()
+                if name and name not in apps:
+                    apps[name] = lnk_path
+        return apps
 
     def execute_command(self, command: str, timeout: int = 10) -> tuple[str, int]:
         try:
@@ -297,15 +353,12 @@ class Desktop:
 
         pid = 0
         if os.path.exists(appid) or "\\" in appid:
-            # It's a file path, we can try to get the PID using PassThru
-            # Escape any single quotes and wrap in single quotes for PowerShell safety
-            safe_appid = appid.replace("'", "''")
-            command = f"Start-Process '{safe_appid}' -PassThru | Select-Object -ExpandProperty Id"
+            safe = self._ps_quote(appid)
+            command = f"Start-Process {safe} -PassThru | Select-Object -ExpandProperty Id"
             response, status = self.execute_command(command)
             if status == 0 and response.strip().isdigit():
                 pid = int(response.strip())
         else:
-            # It's an AUMID (Store App) - validate it only contains expected characters
             if (
                 not appid.replace("\\", "")
                 .replace("_", "")
@@ -314,7 +367,8 @@ class Desktop:
                 .isalnum()
             ):
                 return (f"Invalid app identifier: {appid}", 1, 0)
-            command = f'Start-Process "shell:AppsFolder\\{appid}"'
+            safe = self._ps_quote(f"shell:AppsFolder\\{appid}")
+            command = f"Start-Process {safe}"
             response, status = self.execute_command(command)
 
         return response, status, pid
@@ -421,7 +475,23 @@ class Desktop:
 
     def click(self, loc: tuple[int, int], button: str = "left", clicks: int = 2):
         x, y = loc
-        pg.click(x, y, button=button, clicks=clicks, duration=0.1)
+        if clicks == 0:
+            uia.SetCursorPos(x, y)
+            return
+        match button:
+            case "left":
+                if clicks >= 2:
+                    dbl_wait = uia.GetDoubleClickTime() / 2000.0
+                    for i in range(clicks):
+                        uia.Click(x, y, waitTime=dbl_wait if i < clicks - 1 else 0.5)
+                else:
+                    uia.Click(x, y)
+            case "right":
+                for _ in range(clicks):
+                    uia.RightClick(x, y)
+            case "middle":
+                for _ in range(clicks):
+                    uia.MiddleClick(x, y)
 
     def type(
         self,
@@ -432,24 +502,19 @@ class Desktop:
         press_enter: bool | str = False,
     ):
         x, y = loc
-        pg.leftClick(x, y)
+        uia.Click(x, y)
         if caret_position == "start":
-            pg.press("home")
+            uia.SendKeys("{Home}", waitTime=0.05)
         elif caret_position == "end":
-            pg.press("end")
-        else:
-            pass
-
-        # Handle both boolean and string 'true'/'false'
+            uia.SendKeys("{End}", waitTime=0.05)
         if clear is True or (isinstance(clear, str) and clear.lower() == "true"):
-            pg.sleep(0.5)
-            pg.hotkey("ctrl", "a")
-            pg.press("backspace")
-
-        pg.typewrite(text, interval=0.02)
-
+            sleep(0.5)
+            uia.SendKeys("{Ctrl}a", waitTime=0.05)
+            uia.SendKeys("{Back}", waitTime=0.05)
+        escaped_text = _escape_text_for_sendkeys(text)
+        uia.SendKeys(escaped_text, interval=0.02, waitTime=0.05)
         if press_enter is True or (isinstance(press_enter, str) and press_enter.lower() == "true"):
-            pg.press("enter")
+            uia.SendKeys("{Enter}", waitTime=0.05)
 
     def scroll(
         self,
@@ -472,17 +537,15 @@ class Desktop:
             case "horizontal":
                 match direction:
                     case "left":
-                        pg.keyDown("Shift")
-                        pg.sleep(0.05)
+                        uia.PressKey(uia.Keys.VK_SHIFT, waitTime=0.05)
                         uia.WheelUp(wheel_times)
-                        pg.sleep(0.05)
-                        pg.keyUp("Shift")
+                        sleep(0.05)
+                        uia.ReleaseKey(uia.Keys.VK_SHIFT, waitTime=0.05)
                     case "right":
-                        pg.keyDown("Shift")
-                        pg.sleep(0.05)
+                        uia.PressKey(uia.Keys.VK_SHIFT, waitTime=0.05)
                         uia.WheelDown(wheel_times)
-                        pg.sleep(0.05)
-                        pg.keyUp("Shift")
+                        sleep(0.05)
+                        uia.ReleaseKey(uia.Keys.VK_SHIFT, waitTime=0.05)
                     case _:
                         return 'Invalid direction. Use "left" or "right".'
             case _:
@@ -491,31 +554,37 @@ class Desktop:
 
     def drag(self, loc: tuple[int, int]):
         x, y = loc
-        pg.sleep(0.5)
-        pg.dragTo(x, y, duration=0.6)
+        sleep(0.5)
+        cx, cy = uia.GetCursorPos()
+        uia.DragDrop(cx, cy, x, y, moveSpeed=1)
 
     def move(self, loc: tuple[int, int]):
         x, y = loc
-        pg.moveTo(x, y, duration=0.1)
+        uia.MoveTo(x, y, moveSpeed=10)
 
     def shortcut(self, shortcut: str):
-        shortcut = shortcut.split("+")
-        if len(shortcut) > 1:
-            pg.hotkey(*shortcut)
-        else:
-            pg.press("".join(shortcut))
+        keys = shortcut.split("+")
+        sendkeys_str = ""
+        for key in keys:
+            key = key.strip()
+            if len(key) == 1:
+                sendkeys_str += key
+            else:
+                name = _KEY_ALIASES.get(key.lower(), key)
+                sendkeys_str += "{" + name + "}"
+        uia.SendKeys(sendkeys_str, interval=0.01)
 
     def multi_select(self, press_ctrl: bool | str = False, locs: list[tuple[int, int]] = []):
         press_ctrl = press_ctrl is True or (
             isinstance(press_ctrl, str) and press_ctrl.lower() == "true"
         )
         if press_ctrl:
-            pg.keyDown("ctrl")
+            uia.PressKey(uia.Keys.VK_CONTROL, waitTime=0.05)
         for loc in locs:
             x, y = loc
-            pg.click(x, y, duration=0.2)
-            pg.sleep(0.5)
-        pg.keyUp("ctrl")
+            uia.Click(x, y, waitTime=0.2)
+            sleep(0.5)
+        uia.ReleaseKey(uia.Keys.VK_CONTROL, waitTime=0.05)
 
     def multi_edit(self, locs: list[tuple[int, int, str]]):
         for loc in locs:
@@ -777,7 +846,7 @@ class Desktop:
             return ImageGrab.grab(all_screens=True)
         except Exception:
             logger.warning("Failed to capture virtual screen, using primary screen")
-            return pg.screenshot()
+            return ImageGrab.grab()
 
     def get_annotated_screenshot(self, nodes: list[TreeElementNode]) -> Image.Image:
         screenshot = self.get_screenshot()
@@ -843,21 +912,14 @@ class Desktop:
     def send_notification(self, title: str, message: str) -> str:
         from xml.sax.saxutils import escape as xml_escape
 
-        # Sanitize for XML context (escape <, >, &, ", ')
         safe_title = xml_escape(title, {'"': '&quot;', "'": '&apos;'})
         safe_message = xml_escape(message, {'"': '&quot;', "'": '&apos;'})
 
-        # Escape for PowerShell single-quoted strings (only single quotes need doubling)
-        safe_title_ps = safe_title.replace("'", "''")
-        safe_message_ps = safe_message.replace("'", "''")
-
-        # Build script using PS variables assigned via single-quoted strings
-        # (single-quoted strings do NOT expand $() or backtick sequences)
         ps_script = (
             "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null\n"
             "[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null\n"
-            f"$notifTitle = '{safe_title_ps}'\n"
-            f"$notifMessage = '{safe_message_ps}'\n"
+            f"$notifTitle = {self._ps_quote(safe_title)}\n"
+            f"$notifMessage = {self._ps_quote(safe_message)}\n"
             '$template = @"\n'
             "<toast>\n"
             "    <visual>\n"
@@ -989,6 +1051,63 @@ class Desktop:
 
   Network: ↑ {round(net.bytes_sent / 1024**2, 1)} MB sent, ↓ {round(net.bytes_recv / 1024**2, 1)} MB received
   Uptime: {uptime_str} (booted {boot.strftime("%Y-%m-%d %H:%M")})""")
+
+    def registry_get(self, path: str, name: str) -> str:
+        q_path = self._ps_quote(path)
+        q_name = self._ps_quote(name)
+        command = f"Get-ItemProperty -Path {q_path} -Name {q_name} | Select-Object -ExpandProperty {q_name}"
+        response, status = self.execute_command(command)
+        if status != 0:
+            return f'Error reading registry: {response.strip()}'
+        return f'Registry value [{path}] "{name}" = {response.strip()}'
+
+    def registry_set(self, path: str, name: str, value: str, reg_type: str = 'String') -> str:
+        q_path = self._ps_quote(path)
+        q_name = self._ps_quote(name)
+        q_value = self._ps_quote(value)
+        allowed_types = {"String", "ExpandString", "Binary", "DWord", "MultiString", "QWord"}
+        if reg_type not in allowed_types:
+            return f"Error: invalid registry type '{reg_type}'. Allowed: {', '.join(sorted(allowed_types))}"
+        command = (
+            f"if (-not (Test-Path {q_path})) {{ New-Item -Path {q_path} -Force | Out-Null }}; "
+            f"Set-ItemProperty -Path {q_path} -Name {q_name} -Value {q_value} -Type {reg_type} -Force"
+        )
+        response, status = self.execute_command(command)
+        if status != 0:
+            return f'Error writing registry: {response.strip()}'
+        return f'Registry value [{path}] "{name}" set to "{value}" (type: {reg_type}).'
+
+    def registry_delete(self, path: str, name: str | None = None) -> str:
+        q_path = self._ps_quote(path)
+        if name:
+            q_name = self._ps_quote(name)
+            command = f"Remove-ItemProperty -Path {q_path} -Name {q_name} -Force"
+            response, status = self.execute_command(command)
+            if status != 0:
+                return f'Error deleting registry value: {response.strip()}'
+            return f'Registry value [{path}] "{name}" deleted.'
+        else:
+            command = f"Remove-Item -Path {q_path} -Recurse -Force"
+            response, status = self.execute_command(command)
+            if status != 0:
+                return f'Error deleting registry key: {response.strip()}'
+            return f'Registry key [{path}] deleted.'
+
+    def registry_list(self, path: str) -> str:
+        q_path = self._ps_quote(path)
+        command = (
+            f"$values = (Get-ItemProperty -Path {q_path} -ErrorAction Stop | "
+            f"Select-Object * -ExcludeProperty PS* | Format-List | Out-String).Trim(); "
+            f"$subkeys = (Get-ChildItem -Path {q_path} -ErrorAction SilentlyContinue | "
+            f"Select-Object -ExpandProperty PSChildName) -join \"`n\"; "
+            f"if ($values) {{ Write-Output \"Values:`n$values\" }}; "
+            f"if ($subkeys) {{ Write-Output \"`nSub-Keys:`n$subkeys\" }}; "
+            f"if (-not $values -and -not $subkeys) {{ Write-Output 'No values or sub-keys found.' }}"
+        )
+        response, status = self.execute_command(command)
+        if status != 0:
+            return f'Error listing registry: {response.strip()}'
+        return f'Registry key [{path}]:\n{response.strip()}'
 
     @contextmanager
     def auto_minimize(self):

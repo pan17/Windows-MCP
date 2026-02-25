@@ -13,5 +13,3 @@ EXCLUDED_APPS: Set[str] = set(
         "Windows.UI.Core.CoreWindow",
     ]
 )
-
-PROCESS_PER_MONITOR_DPI_AWARE = 2

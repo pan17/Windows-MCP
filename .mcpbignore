@@ -8,6 +8,9 @@ assets/*.mov
 # Git
 .git/
 
+# Tests
+tests/
+
 # Development files
 __pycache__/
 *.pyc

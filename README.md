@@ -21,16 +21,16 @@
 
 <br>
 
-**Windows MCP** is a lightweight, open-source project that enables seamless integration between AI agents and the Windows operating system. Acting as an MCP server bridges the gap between LLMs and the Windows operating system, allowing agents to perform tasks such as **file navigation, application control, UI interaction, QA testing,** and more.
+**Windows-MCP** is a lightweight, open-source project that enables seamless integration between AI agents and the Windows operating system. Acting as an MCP server bridges the gap between LLMs and the Windows operating system, allowing agents to perform tasks such as **file navigation, application control, UI interaction, QA testing,** and more.
 
 mcp-name: io.github.CursorTouch/Windows-MCP
 
 ## Updates
-- Windows-MCP reached `1M+ Users` in [Claude Desktop Extensiosn](https://claude.ai/directory). 
+- Added VM support for Windows-MCP. Check (windowsmcp.io)[https://windowsmcp.io/] for more details.
+- Windows-MCP reached `2M+ Users` in [Claude Desktop Extensiosn](https://claude.ai/directory). 
+- Try out [🪟Windows-Use](https://pypi.org/project/windows-use/), an agent built using Windows-MCP.
 - Windows-MCP is now available on [PyPI](https://pypi.org/project/windows-mcp/) (thus supports `uvx windows-mcp`)
 - Windows-MCP is added to [MCP Registry](https://github.com/modelcontextprotocol/registry)
-- Try out [🪟Windows-Use](https://pypi.org/project/windows-use/), an agent built using Windows-MCP.
-- Windows-MCP is now featured as Desktop Extension in `Claude Desktop`.
 
 ### Supported Operating Systems
 
@@ -51,7 +51,7 @@ mcp-name: io.github.CursorTouch/Windows-MCP
   Interacts natively with Windows UI elements, opens apps, controls windows, simulates user input, and more.
 
 - **Use Any LLM (Vision Optional)**
-   Unlike many automation tools, Windows MCP doesn't rely on any traditional computer vision techniques or specific fine-tuned models; it works with any LLMs, reducing complexity and setup time.
+   Unlike many automation tools, Windows-MCP doesn't rely on any traditional computer vision techniques or specific fine-tuned models; it works with any LLMs, reducing complexity and setup time.
 
 - **Rich Toolset for UI Automation**  
   Includes tools for basic keyboard, mouse operation and capturing window/UI state.
@@ -76,8 +76,7 @@ mcp-name: io.github.CursorTouch/Windows-MCP
 
 - Python 3.13+
 - UV (Package Manager) from Astra, install with `pip install uv` or `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- `English` as the default language in Windows highly preferred or disable the `App-Tool` in the MCP Server for Windows with other languages.
-
+- `English` as the default language in Windows preferred else disable the `App-Tool` in the MCP Server for Windows with other languages.
 <details>
   <summary>Install in Claude Desktop</summary>
 
@@ -293,6 +292,67 @@ args=[
 
 ---
 
+## 🖥️ Modes
+
+Windows-MCP supports two operating modes: **Local** (default) and **Remote**.
+
+### Local Mode (Default)
+
+In local mode, Windows-MCP runs directly on your Windows machine and exposes its tools to the connected MCP client. This is the standard setup for personal use.
+
+```shell
+# Runs with stdio transport (default)
+uvx windows-mcp
+
+# Or with SSE/Streamable HTTP for network access
+uvx windows-mcp --transport sse --host localhost --port 8000
+uvx windows-mcp --transport streamable-http --host localhost --port 8000
+```
+
+No additional environment variables are needed. The MCP client connects directly to the server.
+
+### Remote Mode
+
+In remote mode, Windows-MCP acts as a **proxy** that connects to the [windowsmcp.io](https://windowsmcp.io) enabling cloud-hosted Windows automation. This is designed for scenarios where the MCP client is remote and connects through the dashboard, which routes requests to a Windows VM running Windows-MCP.
+
+**Required environment variables:**
+
+| Variable | Description |
+|---|---|
+| `MODE` | Set to `remote` |
+| `SANDBOX_ID` | The sandbox/VM identifier from the dashboard |
+| `API_KEY` | Your Windows-MCP API key |
+
+**Example configuration:**
+
+```json
+{
+  "mcpServers": {
+    "windows-mcp": {
+      "command": "uvx",
+      "args": [
+        "windows-mcp"
+      ],
+      "env": {
+        "MODE": "remote",
+        "SANDBOX_ID": "your-sandbox-id",
+        "API_KEY": "your-api-key"
+      }
+    }
+  }
+}
+```
+
+### Transport Options
+
+| Transport | Flag | Use Case |
+|---|---|---|
+| `stdio` (default) | `--transport stdio` | Direct connection from MCP clients like Claude Desktop, Cursor, etc. |
+| `sse` | `--transport sse --host HOST --port PORT` | Network-accessible via Server-Sent Events |
+| `streamable-http` | `--transport streamable-http --host HOST --port PORT` | Network-accessible via HTTP streaming (recommended for production) |
+
+---
+
 ## 🔨MCP Tools
 
 MCP Client can access the following tools to interact with Windows:
@@ -314,6 +374,7 @@ MCP Client can access the following tools to interact with Windows:
 - `SystemInfo`: Get system information including CPU, memory, disk, network stats, and uptime.
 - `Notification`: Send a Windows toast notification with a title and message.
 - `LockScreen`: Lock the Windows workstation.
+- `Registry`: Read, write, delete, or list Windows Registry values and keys.
 
 ## 🤝 Connect with Us
 Stay updated and join our community:
