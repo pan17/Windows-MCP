@@ -1523,19 +1523,16 @@ def SendKeys(
             SendUnicodeChar(key[0], charMode)
             time.sleep(interval)
             if debug:
-                Logger.ColorfullyWrite(
-                    "<Color=DarkGreen>{}</Color>, sleep({})\n".format(printKeys[i], interval),
-                    writeToFile=False,
-                )
+                pass
         else:
             scanCode = _VKtoSC(key[0])
             keybd_event(key[0], scanCode, key[1], 0)
             if debug:
-                Logger.Write(printKeys[i], ConsoleColor.DarkGreen, writeToFile=False)
+                pass
             if i + 1 == len(keys):
                 time.sleep(interval)
                 if debug:
-                    Logger.Write(", sleep({})\n".format(interval), writeToFile=False)
+                    pass
             else:
                 if key[1] & KeyboardEventFlag.KeyUp:
                     if (
@@ -1544,36 +1541,23 @@ def SendKeys(
                     ):
                         time.sleep(interval)
                         if debug:
-                            Logger.Write(", sleep({})\n".format(interval), writeToFile=False)
+                            pass
                     else:
                         time.sleep(
                             hotkeyInterval
                         )  # must sleep for a while, otherwise combined keys may not be caught
                         if debug:
-                            Logger.Write(
-                                ", sleep({})\n".format(hotkeyInterval),
-                                writeToFile=False,
-                            )
+                            pass
                 else:  # KeyboardEventFlag.KeyDown
                     time.sleep(hotkeyInterval)
                     if debug:
-                        Logger.Write(", sleep({})\n".format(hotkeyInterval), writeToFile=False)
+                        pass
     # make sure hold keys are not pressed
     # win = ctypes.windll.user32.GetAsyncKeyState(Keys.VK_LWIN)
     # ctrl = ctypes.windll.user32.GetAsyncKeyState(Keys.VK_CONTROL)
     # alt = ctypes.windll.user32.GetAsyncKeyState(Keys.VK_MENU)
     # shift = ctypes.windll.user32.GetAsyncKeyState(Keys.VK_SHIFT)
-    # if win & 0x8000:
-    # Logger.WriteLine('ERROR: WIN is pressed, it should not be pressed!', ConsoleColor.Red)
-    # keybd_event(Keys.VK_LWIN, 0, KeyboardEventFlag.KeyUp | KeyboardEventFlag.ExtendedKey, 0)
-    # if ctrl & 0x8000:
-    # Logger.WriteLine('ERROR: CTRL is pressed, it should not be pressed!', ConsoleColor.Red)
-    # keybd_event(Keys.VK_CONTROL, 0, KeyboardEventFlag.KeyUp | KeyboardEventFlag.ExtendedKey, 0)
-    # if alt & 0x8000:
-    # Logger.WriteLine('ERROR: ALT is pressed, it should not be pressed!', ConsoleColor.Red)
-    # keybd_event(Keys.VK_MENU, 0, KeyboardEventFlag.KeyUp | KeyboardEventFlag.ExtendedKey, 0)
     # if shift & 0x8000:
-    # Logger.WriteLine('ERROR: SHIFT is pressed, it should not be pressed!', ConsoleColor.Red)
     # keybd_event(Keys.VK_SHIFT, 0, KeyboardEventFlag.KeyUp | KeyboardEventFlag.ExtendedKey, 0)
     time.sleep(waitTime)
 
@@ -1841,295 +1825,6 @@ def TerminateProcessByName(exeName: str, killAll: bool = True) -> int:
     return count
 
 
-class Logger:
-    """
-    Logger for print and log. Support for printing log with different colors on console.
-    """
-
-    FilePath = "@AutomationLog.txt"
-    FileObj = None
-    FlushTime = ProcessTime()
-    _SelfFileName = os.path.split(__file__)[1]
-    ColorNames = {
-        "Black": ConsoleColor.Black,
-        "DarkBlue": ConsoleColor.DarkBlue,
-        "DarkGreen": ConsoleColor.DarkGreen,
-        "DarkCyan": ConsoleColor.DarkCyan,
-        "DarkRed": ConsoleColor.DarkRed,
-        "DarkMagenta": ConsoleColor.DarkMagenta,
-        "DarkYellow": ConsoleColor.DarkYellow,
-        "Gray": ConsoleColor.Gray,
-        "DarkGray": ConsoleColor.DarkGray,
-        "Blue": ConsoleColor.Blue,
-        "Green": ConsoleColor.Green,
-        "Cyan": ConsoleColor.Cyan,
-        "Red": ConsoleColor.Red,
-        "Magenta": ConsoleColor.Magenta,
-        "Yellow": ConsoleColor.Yellow,
-        "White": ConsoleColor.White,
-    }
-
-    @staticmethod
-    def SetLogFile(logFile: Union[TextIOWrapper, str]) -> None:
-        """
-        logFile: file object or str.
-        If logFile is '', no log file will be written.
-        The previous log file will be closed immediately.
-        """
-        if Logger.FileObj:
-            Logger.FileObj.close()
-            Logger.FileObj = None
-        if isinstance(logFile, str):
-            Logger.FilePath = logFile
-            if logFile:
-                Logger.FileObj = open(logFile, "a+", encoding="utf-8", newline="\n")
-        else:
-            Logger.FileObj = logFile
-
-    @staticmethod
-    def Write(
-        log: Any,
-        consoleColor: int = ConsoleColor.Default,
-        writeToFile: bool = True,
-        printToStdout: bool = True,
-        logFile: str | None = None,
-        printTruncateLen: int = 0,
-    ) -> None:
-        """
-        log: any type.
-        consoleColor: int, a value in class `ConsoleColor`, such as `ConsoleColor.DarkGreen`.
-        writeToFile: bool.
-        printToStdout: bool.
-        logFile: str, log file path.
-        printTruncateLen: int, if <= 0, log is not truncated when print.
-        """
-        if not isinstance(log, str):
-            log = str(log)
-        if printToStdout and sys.stdout:
-            isValidColor = consoleColor >= ConsoleColor.Black and consoleColor <= ConsoleColor.White
-            if isValidColor:
-                SetConsoleColor(consoleColor)
-            try:
-                if printTruncateLen > 0 and len(log) > printTruncateLen:
-                    sys.stdout.write(log[:printTruncateLen] + "...")
-                else:
-                    sys.stdout.write(log)
-            except Exception as ex:
-                SetConsoleColor(ConsoleColor.Red)
-                isValidColor = True
-                sys.stdout.write(ex.__class__.__name__ + ": can't print the log!")
-                if log.endswith("\n"):
-                    sys.stdout.write("\n")
-            if isValidColor:
-                ResetConsoleColor()
-            if sys.stdout:
-                sys.stdout.flush()
-        if not writeToFile:
-            return
-        fout = None
-        close = False
-        try:
-            if logFile:
-                fout = open(logFile, "a+", encoding="utf-8", newline="\n")
-                close = True
-            else:
-                if Logger.FileObj:
-                    fout = Logger.FileObj
-                elif Logger.FilePath:
-                    fout = open(Logger.FilePath, "a+", encoding="utf-8", newline="\n")
-                    Logger.FileObj = fout
-            if fout:
-                fout.write(log)
-                now = ProcessTime()
-                if now >= Logger.FlushTime + 2:
-                    fout.flush()
-                    Logger.FlushTime = now
-        except Exception as ex:
-            if sys.stdout:
-                sys.stdout.write(ex.__class__.__name__ + ": can't write the log!")
-        finally:
-            if close and fout:
-                fout.close()
-
-    @staticmethod
-    def WriteLine(
-        log: Any,
-        consoleColor: int = ConsoleColor.Default,
-        writeToFile: bool = True,
-        printToStdout: bool = True,
-        logFile: str | None = None,
-    ) -> None:
-        """
-        log: any type.
-        consoleColor: int, a value in class `ConsoleColor`, such as `ConsoleColor.DarkGreen`.
-        writeToFile: bool.
-        printToStdout: bool.
-        logFile: str, log file path.
-        """
-        Logger.Write("{}\n".format(log), consoleColor, writeToFile, printToStdout, logFile)
-
-    @staticmethod
-    def ColorfullyWrite(
-        log: str,
-        consoleColor: int = ConsoleColor.Default,
-        writeToFile: bool = True,
-        printToStdout: bool = True,
-        logFile: str | None = None,
-    ) -> None:
-        """
-        log: str.
-        consoleColor: int, a value in class `ConsoleColor`, such as `ConsoleColor.DarkGreen`.
-        writeToFile: bool.
-        printToStdout: bool.
-        logFile: str, log file path.
-        ColorfullyWrite('Hello <Color=Green>Green Text</Color> !!!'), Color name must be in `Logger.ColorNames` and can't be nested.
-        """
-        text = []
-        start = 0
-        while True:
-            index1 = log.find("<Color=", start)
-            if index1 < 0:
-                text.append((log[start:], consoleColor))
-                break
-            if index1 > start:
-                text.append((log[start:index1], consoleColor))
-                start = index1
-            index2 = log.find(">", index1 + 7)
-            if index2 < 0:
-                text.append((log[start:], consoleColor))
-                break
-            colorName = log[index1 + 7 : index2]
-            if colorName not in Logger.ColorNames:
-                text.append((log[start : index1 + 7], consoleColor))
-                start = index1 + 7
-                continue
-            index3 = log.find("</Color>", index2 + 1)
-            if index3 < 0:
-                text.append((log[start:], consoleColor))
-                break
-            text.append((log[index2 + 1 : index3], Logger.ColorNames[colorName]))
-            start = index3 + 8
-        for t, c in text:
-            Logger.Write(t, c, writeToFile, printToStdout, logFile)
-
-    @staticmethod
-    def ColorfullyWriteLine(
-        log: str,
-        consoleColor: int = ConsoleColor.Default,
-        writeToFile: bool = True,
-        printToStdout: bool = True,
-        logFile: str | None = None,
-    ) -> None:
-        """
-        log: str.
-        consoleColor: int, a value in class `ConsoleColor`, such as `ConsoleColor.DarkGreen`.
-        writeToFile: bool.
-        printToStdout: bool.
-        logFile: str, log file path.
-
-        ColorfullyWriteLine('Hello <Color=Green>Green Text</Color> !!!'), Color name must be in `Logger.ColorNames` and can't be nested.
-        """
-        Logger.ColorfullyWrite(log + "\n", consoleColor, writeToFile, printToStdout, logFile)
-
-    @staticmethod
-    def Log(
-        log: Any = "",
-        consoleColor: int = ConsoleColor.Default,
-        writeToFile: bool = True,
-        printToStdout: bool = True,
-        logFile: str | None = None,
-    ) -> None:
-        """
-        log: any type.
-        consoleColor: int, a value in class `ConsoleColor`, such as `ConsoleColor.DarkGreen`.
-        writeToFile: bool.
-        printToStdout: bool.
-        logFile: str, log file path.
-        """
-        frameCount = 1
-        while True:
-            frame = sys._getframe(frameCount)
-            _, scriptFileName = os.path.split(frame.f_code.co_filename)
-            if scriptFileName != Logger._SelfFileName:
-                break
-            frameCount += 1
-
-        t = datetime.datetime.now()
-        log = "{}-{:02}-{:02} {:02}:{:02}:{:02}.{:03} {}[{}] {} -> {}\n".format(
-            t.year,
-            t.month,
-            t.day,
-            t.hour,
-            t.minute,
-            t.second,
-            t.microsecond // 1000,
-            scriptFileName,
-            frame.f_lineno,
-            frame.f_code.co_name,
-            log,
-        )
-        Logger.Write(log, consoleColor, writeToFile, printToStdout, logFile)
-
-    @staticmethod
-    def ColorfullyLog(
-        log: str = "",
-        consoleColor: int = ConsoleColor.Default,
-        writeToFile: bool = True,
-        printToStdout: bool = True,
-        logFile: str | None = None,
-    ) -> None:
-        """
-        log: any type.
-        consoleColor: int, a value in class `ConsoleColor`, such as `ConsoleColor.DarkGreen`.
-        writeToFile: bool.
-        printToStdout: bool.
-        logFile: str, log file path.
-
-        ColorfullyLog('Hello <Color=Green>Green Text</Color> !!!'), Color name must be in `Logger.ColorNames` and can't be nested.
-        """
-        frameCount = 1
-        while True:
-            frame = sys._getframe(frameCount)
-            _, scriptFileName = os.path.split(frame.f_code.co_filename)
-            if scriptFileName != Logger._SelfFileName:
-                break
-            frameCount += 1
-
-        t = datetime.datetime.now()
-        log = "{}-{:02}-{:02} {:02}:{:02}:{:02}.{:03} {}[{}] {} -> {}\n".format(
-            t.year,
-            t.month,
-            t.day,
-            t.hour,
-            t.minute,
-            t.second,
-            t.microsecond // 1000,
-            scriptFileName,
-            frame.f_lineno,
-            frame.f_code.co_name,
-            log,
-        )
-        Logger.ColorfullyWrite(log, consoleColor, writeToFile, printToStdout, logFile)
-
-    @staticmethod
-    def DeleteLog() -> None:
-        """Delete log file."""
-        if os.path.exists(Logger.FilePath):
-            os.remove(Logger.FilePath)
-
-    LogColorfully = ColorfullyLog
-    WriteColorfully = ColorfullyWrite
-    WriteLineColorfully = ColorfullyWriteLine
-
-
-def _ExitHandler():
-    if Logger.FileObj:
-        Logger.FileObj.close()
-
-
-atexit.register(_ExitHandler)
-
-
 _ClipboardLock = threading.Lock()
 
 
@@ -2290,12 +1985,10 @@ def SetClipboardHtml(htmlText: str) -> bool:
 
 
 def Input(prompt: str, consoleColor: int = ConsoleColor.Default) -> str:
-    Logger.Write(prompt, consoleColor, writeToFile=False)
     return input()
 
 
 def InputColorfully(prompt: str, consoleColor: int = ConsoleColor.Default) -> str:
-    Logger.ColorfullyWrite(prompt, consoleColor, writeToFile=False)
     return input()
 
 
@@ -2390,25 +2083,11 @@ class ClipboardFormat:
     CF_HTML = ctypes.windll.user32.RegisterClipboardFormatW("HTML Format")
 
 
-# TODO: Failed to parse structure ACCESSTIMEOUT
 class ExtendedProperty(ctypes.Structure):
     _fields_ = [
         ("PropertyName", ctypes.c_wchar_p),
         ("PropertyValue", ctypes.c_wchar_p),
     ]
-
-
-# TODO: Failed to parse structure FILTERKEYS
-# TODO: Failed to parse structure HIGHCONTRASTA
-# TODO: Failed to parse structure HIGHCONTRASTW
-# TODO: Failed to parse structure MOUSEKEYS
-# TODO: Failed to parse structure MSAAMENUINFO
-# TODO: Failed to parse structure SERIALKEYSA
-# TODO: Failed to parse structure SERIALKEYSW
-# TODO: Failed to parse structure SOUNDSENTRYA
-# TODO: Failed to parse structure SOUNDSENTRYW
-# TODO: Failed to parse structure STICKYKEYS
-# TODO: Failed to parse structure TOGGLEKEYS
 class UIAutomationEventInfo(ctypes.Structure):
     _fields_ = [
         ("guid", ctypes.c_void_p),

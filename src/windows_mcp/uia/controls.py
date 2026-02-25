@@ -187,12 +187,7 @@ class Control:
             if controlType in ControlConstructors:
                 return ControlConstructors[controlType](element=element)
             else:
-                Logger.WriteLine(
-                    "element.CurrentControlType returns {}, invalid ControlType!".format(
-                        controlType
-                    ),
-                    ConsoleColor.Red,
-                )  # rarely happens
+                pass
         return None
 
     @staticmethod
@@ -1170,9 +1165,7 @@ class Control:
         prev = self.searchFromControl
         if prev and not prev._element and not prev.Exists(maxSearchSeconds, searchIntervalSeconds):
             if printIfNotExist or DEBUG_EXIST_DISAPPEAR:
-                Logger.ColorfullyLog(
-                    self.GetColorfulSearchPropertiesStr() + "<Color=Red> does not exist.</Color>"
-                )
+                pass
             return False
         startTime2 = ProcessTime()
         if DEBUG_SEARCH_TIME:
@@ -1189,15 +1182,7 @@ class Control:
                 self._element = control.Element
                 control._element = 0  # control will be destroyed, but the element needs to be stored in self._element
                 if DEBUG_SEARCH_TIME:
-                    Logger.ColorfullyLog(
-                        "{} TraverseControls: <Color=Cyan>{}</Color>, SearchTime: <Color=Cyan>{:.3f}</Color>s[{} - {}]".format(
-                            self.GetColorfulSearchPropertiesStr(),
-                            control.traverseCount,
-                            ProcessTime() - startTime2,
-                            startDateTime.time(),
-                            datetime.datetime.now().time(),
-                        )
-                    )
+                    pass
                 return True
             else:
                 remain = startTime + maxSearchSeconds - ProcessTime()
@@ -1205,10 +1190,7 @@ class Control:
                     time.sleep(min(remain, searchIntervalSeconds))
                 else:
                     if printIfNotExist or DEBUG_EXIST_DISAPPEAR:
-                        Logger.ColorfullyLog(
-                            self.GetColorfulSearchPropertiesStr()
-                            + "<Color=Red> does not exist.</Color>"
-                        )
+                        pass
                     return False
 
     def Disappears(
@@ -1237,10 +1219,7 @@ class Control:
                 time.sleep(min(remain, searchIntervalSeconds))
             else:
                 if printIfNotDisappear or DEBUG_EXIST_DISAPPEAR:
-                    Logger.ColorfullyLog(
-                        self.GetColorfulSearchPropertiesStr()
-                        + "<Color=Red> does not disappear.</Color>"
-                    )
+                    pass
                 return False
 
     def Refind(
@@ -1262,11 +1241,6 @@ class Control:
             False if raiseException else DEBUG_EXIST_DISAPPEAR,
         ):
             if raiseException:
-                Logger.ColorfullyLog(
-                    "<Color=Red>Find Control Timeout({}s): </Color>{}".format(
-                        maxSearchSeconds, self.GetColorfulSearchPropertiesStr()
-                    )
-                )
                 raise LookupError(
                     "Find Control Timeout({}s): {}".format(
                         maxSearchSeconds, self.GetSearchPropertiesStr()
@@ -1285,11 +1259,6 @@ class Control:
         """
         rect = self.BoundingRectangle
         if rect.width() == 0 or rect.height() == 0:
-            Logger.ColorfullyLog(
-                "<Color=Yellow>Can not move cursor</Color>. {}'s BoundingRectangle is {}. SearchProperties: {}".format(
-                    self.ControlTypeName, rect, self.GetColorfulSearchPropertiesStr()
-                )
-            )
             return None
         x = rect.left + int(rect.width() * ratioX)
         y = rect.top + int(rect.height() * ratioY)
@@ -1315,11 +1284,6 @@ class Control:
         """
         rect = self.BoundingRectangle
         if rect.width() == 0 or rect.height() == 0:
-            Logger.ColorfullyLog(
-                "<Color=Yellow>Can not move cursor</Color>. {}'s BoundingRectangle is {}. SearchProperties: {}".format(
-                    self.ControlTypeName, rect, self.GetColorfulSearchPropertiesStr()
-                )
-            )
             return None
         if x is None:
             x = rect.left + int(rect.width() * ratioX)
@@ -1453,11 +1417,6 @@ class Control:
     ) -> None:
         rect = self.BoundingRectangle
         if rect.width() == 0 or rect.height() == 0:
-            Logger.ColorfullyLog(
-                "<Color=Yellow>Can not move cursor</Color>. {}'s BoundingRectangle is {}. SearchProperties: {}".format(
-                    self.ControlTypeName, rect, self.GetColorfulSearchPropertiesStr()
-                )
-            )
             return
         x1 = (rect.left if x1 >= 0 else rect.right) + x1
         y1 = (rect.top if y1 >= 0 else rect.bottom) + y1
@@ -1476,11 +1435,6 @@ class Control:
     ) -> None:
         rect = self.BoundingRectangle
         if rect.width() == 0 or rect.height() == 0:
-            Logger.ColorfullyLog(
-                "<Color=Yellow>Can not move cursor</Color>. {}'s BoundingRectangle is {}. SearchProperties: {}".format(
-                    self.ControlTypeName, rect, self.GetColorfulSearchPropertiesStr()
-                )
-            )
             return
         x1 = (rect.left if x1 >= 0 else rect.right) + x1
         y1 = (rect.top if y1 >= 0 else rect.bottom) + y1
@@ -3251,12 +3205,6 @@ class ComboBoxControl(Control):
                     listItemControl.Click(simulateMove=simulateMove, waitTime=waitTime)
                     find = True
         if not find:
-            Logger.ColorfullyLog(
-                "Can't find <Color=Cyan>{}</Color> in ComboBoxControl or it does not support selection.".format(
-                    itemName
-                ),
-                ConsoleColor.Yellow,
-            )
             if expandCollapsePattern:
                 expandCollapsePattern.Collapse(waitTime)
             else:
@@ -5191,7 +5139,7 @@ class WindowControl(Control, TopLevel):
             MoveTo(screenWidth // 2, 0, waitTime=0)
             DragDrop(screenWidth // 2, 0, screenWidth // 2, screenHeight, waitTime=waitTime)
         else:
-            Logger.WriteLine("Window is not Metro!", ConsoleColor.Yellow)
+            pass
 
 
 ControlConstructors = {
@@ -5556,23 +5504,8 @@ def LogControl(
     showAllName: bool, if False, print the first 30 characters of control.Name.
     """
     indent = " " * depth * 4
-    Logger.Write("{0}ControlType: ".format(indent))
-    Logger.Write(control.ControlTypeName, ConsoleColor.DarkGreen)
-    Logger.Write("    ClassName: ")
-    Logger.Write(control.ClassName, ConsoleColor.DarkGreen)
-    Logger.Write("    AutomationId: ")
-    Logger.Write(control.AutomationId, ConsoleColor.DarkGreen)
-    Logger.Write("    Rect: ")
-    Logger.Write(control.BoundingRectangle, ConsoleColor.DarkGreen)
-    Logger.Write("    Name: ")
-    Logger.Write(control.Name, ConsoleColor.DarkGreen, printTruncateLen=0 if showAllName else 30)
-    Logger.Write("    Handle: ")
-    Logger.Write("0x{0:X}({0})".format(control.NativeWindowHandle), ConsoleColor.DarkGreen)
-    Logger.Write("    Depth: ")
-    Logger.Write(depth, ConsoleColor.DarkGreen)
     if showPid:
-        Logger.Write("    ProcessId: ")
-        Logger.Write(control.ProcessId, ConsoleColor.DarkGreen)
+        pass
     supportedPatterns = list(
         filter(
             lambda t: t[0],
@@ -5581,58 +5514,30 @@ def LogControl(
     )
     for pt, name in supportedPatterns:
         if isinstance(pt, ValuePattern):
-            Logger.Write("    ValuePattern.Value: ")
-            Logger.Write(
-                repr(pt.Value),
-                ConsoleColor.DarkGreen,
-                printTruncateLen=0 if showAllName else 30,
-            )
+            pass
         elif isinstance(pt, RangeValuePattern):
-            Logger.Write("    RangeValuePattern.Value: ")
-            Logger.Write(pt.Value, ConsoleColor.DarkGreen)
+            pass
         elif isinstance(pt, TogglePattern):
-            Logger.Write("    TogglePattern.ToggleState: ")
-            Logger.Write(
-                "ToggleState." + _GetDictKeyName(ToggleState.__dict__, pt.ToggleState),
-                ConsoleColor.DarkGreen,
-            )
+            pass
         elif isinstance(pt, SelectionItemPattern):
-            Logger.Write("    SelectionItemPattern.IsSelected: ")
-            Logger.Write(pt.IsSelected, ConsoleColor.DarkGreen)
+            pass
         elif isinstance(pt, ExpandCollapsePattern):
-            Logger.Write("    ExpandCollapsePattern.ExpandCollapseState: ")
-            Logger.Write(
-                "ExpandCollapseState."
-                + _GetDictKeyName(ExpandCollapseState.__dict__, pt.ExpandCollapseState),
-                ConsoleColor.DarkGreen,
-            )
+            pass
         elif isinstance(pt, ScrollPattern):
-            Logger.Write("    ScrollPattern.HorizontalScrollPercent: ")
-            Logger.Write(pt.HorizontalScrollPercent, ConsoleColor.DarkGreen)
-            Logger.Write("    ScrollPattern.VerticalScrollPercent: ")
-            Logger.Write(pt.VerticalScrollPercent, ConsoleColor.DarkGreen)
+            pass
         elif isinstance(pt, GridPattern):
-            Logger.Write("    GridPattern.RowCount: ")
-            Logger.Write(pt.RowCount, ConsoleColor.DarkGreen)
-            Logger.Write("    GridPattern.ColumnCount: ")
-            Logger.Write(pt.ColumnCount, ConsoleColor.DarkGreen)
+            pass
         elif isinstance(pt, GridItemPattern):
-            Logger.Write("    GridItemPattern.Row: ")
-            Logger.Write(pt.Row, ConsoleColor.DarkGreen)
-            Logger.Write("    GridItemPattern.Column: ")
-            Logger.Write(pt.Column, ConsoleColor.DarkGreen)
+            pass
         elif isinstance(pt, TextPattern):
             # issue 49: CEF Control as DocumentControl have no "TextPattern.Text" property, skip log this part.
             # https://docs.microsoft.com/en-us/windows/win32/api/uiautomationclient/nf-uiautomationclient-iuiautomationtextpattern-get_documentrange
             try:
-                Logger.Write("    TextPattern.Text: ")
-                Logger.Write(repr(pt.DocumentRange.GetText(30)), ConsoleColor.DarkGreen)
+                pass
             except comtypes.COMError:
                 pass
-    Logger.Write("    SupportedPattern:")
     for pt, name in supportedPatterns:
-        Logger.Write(" " + name, ConsoleColor.DarkGreen)
-    Logger.Write("\n")
+        pass
 
 
 def EnumAndLogControl(
@@ -5780,22 +5685,9 @@ def RunByHotKey(
         try:
             function(stopEvent)
         except Exception as ex:
-            Logger.ColorfullyWrite(
-                "Catch an exception <Color=Red>{}</Color> in thread for hotkey <Color=DarkCyan>{}</Color>\n".format(
-                    ex.__class__.__name__, hotkeyName
-                ),
-                writeToFile=False,
-            )
             print(traceback.format_exc())
         finally:
             releaseAllKeys()  # need to release keys if some keys were pressed
-            Logger.ColorfullyWrite(
-                "{} for function <Color=DarkCyan>{}</Color> exits, hotkey <Color=DarkCyan>{}</Color>\n".format(
-                    threading.currentThread(), function.__name__, hotkeyName
-                ),
-                ConsoleColor.DarkYellow,
-                writeToFile=False,
-            )
 
     stopHotKeyId = 1
     exitHotKeyId = 2
@@ -5813,56 +5705,26 @@ def RunByHotKey(
         keyName = _GetDictKeyName(Keys.__dict__, hotkey[1])
         id2Name[hotKeyId] = str((modName, keyName))
         if ctypes.windll.user32.RegisterHotKey(0, hotKeyId, hotkey[0], hotkey[1]):
-            Logger.ColorfullyWrite(
-                "Register hotkey <Color=Cyan>{}</Color> successfully\n".format((modName, keyName)),
-                writeToFile=False,
-            )
+            pass
         else:
             registed = False
-            Logger.ColorfullyWrite(
-                "Register hotkey <Color=Cyan>{}</Color> unsuccessfully, maybe it was allready registered by another program\n".format(
-                    (modName, keyName)
-                ),
-                writeToFile=False,
-            )
         hotKeyId += 1
     if stopHotKey and len(stopHotKey) == 2:
         modName = getModName(ModifierKey.__dict__, stopHotKey[0])
         keyName = _GetDictKeyName(Keys.__dict__, stopHotKey[1])
         if ctypes.windll.user32.RegisterHotKey(0, stopHotKeyId, stopHotKey[0], stopHotKey[1]):
-            Logger.ColorfullyWrite(
-                "Register stop hotkey <Color=DarkYellow>{}</Color> successfully\n".format(
-                    (modName, keyName)
-                ),
-                writeToFile=False,
-            )
+            pass
         else:
             registed = False
-            Logger.ColorfullyWrite(
-                "Register stop hotkey <Color=DarkYellow>{}</Color> unsuccessfully, maybe it was allready registered by another program\n".format(
-                    (modName, keyName)
-                ),
-                writeToFile=False,
-            )
     if not registed:
         return
     if exitHotKey and len(exitHotKey) == 2:
         modName = getModName(ModifierKey.__dict__, exitHotKey[0])
         keyName = _GetDictKeyName(Keys.__dict__, exitHotKey[1])
         if ctypes.windll.user32.RegisterHotKey(0, exitHotKeyId, exitHotKey[0], exitHotKey[1]):
-            Logger.ColorfullyWrite(
-                "Register exit hotkey <Color=DarkYellow>{}</Color> successfully\n".format(
-                    (modName, keyName)
-                ),
-                writeToFile=False,
-            )
+            pass
         else:
-            Logger.ColorfullyWrite(
-                "Register exit hotkey <Color=DarkYellow>{}</Color> unsuccessfully\n".format(
-                    (modName, keyName)
-                ),
-                writeToFile=False,
-            )
+            pass
     funcThread = None
     livingThreads = []
     stopEvent = threading.Event()
@@ -5879,12 +5741,6 @@ def RunByHotKey(
                     msg.lParam & 0x0000FFFF == id2HotKey[msg.wParam][0]
                     and msg.lParam >> 16 & 0x0000FFFF == id2HotKey[msg.wParam][1]
                 ):
-                    Logger.ColorfullyWrite(
-                        "----------hotkey <Color=Cyan>{}</Color> pressed----------\n".format(
-                            id2Name[msg.wParam]
-                        ),
-                        writeToFile=False,
-                    )
                     if not id2Thread[msg.wParam]:
                         stopEvent.clear()
                         funcThread = threading.Thread(
@@ -5901,13 +5757,7 @@ def RunByHotKey(
                         id2Thread[msg.wParam] = funcThread
                     else:
                         if id2Thread[msg.wParam].is_alive():
-                            Logger.WriteLine(
-                                "There is a {} that is already running for hotkey {}".format(
-                                    id2Thread[msg.wParam], id2Name[msg.wParam]
-                                ),
-                                ConsoleColor.Yellow,
-                                writeToFile=False,
-                            )
+                            pass
                         else:
                             stopEvent.clear()
                             funcThread = threading.Thread(
@@ -5927,11 +5777,6 @@ def RunByHotKey(
                     msg.lParam & 0x0000FFFF == stopHotKey[0]
                     and msg.lParam >> 16 & 0x0000FFFF == stopHotKey[1]
                 ):
-                    Logger.Write(
-                        "----------stop hotkey pressed----------\n",
-                        ConsoleColor.DarkYellow,
-                        writeToFile=False,
-                    )
                     stopEvent.set()
                     for id_ in id2Thread:
                         if id2Thread[id_]:
@@ -5943,11 +5788,6 @@ def RunByHotKey(
                     msg.lParam & 0x0000FFFF == exitHotKey[0]
                     and msg.lParam >> 16 & 0x0000FFFF == exitHotKey[1]
                 ):
-                    Logger.Write(
-                        "Exit hotkey pressed. Exit\n",
-                        ConsoleColor.DarkYellow,
-                        writeToFile=False,
-                    )
                     stopEvent.set()
                     for id_ in id2Thread:
                         if id2Thread[id_]:
@@ -5957,10 +5797,5 @@ def RunByHotKey(
                     break
     for thread, hotkeyName in livingThreads:
         if thread.is_alive():
-            Logger.Write(
-                "join {} triggered by hotkey {}\n".format(thread, hotkeyName),
-                ConsoleColor.DarkYellow,
-                writeToFile=False,
-            )
             thread.join(2)
     exit()
