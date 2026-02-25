@@ -12,13 +12,17 @@ from fastmcp import FastMCP, Context
 from windows_mcp import filesystem
 from dotenv import load_dotenv
 from textwrap import dedent
+import windows_mcp.uia as uia
 from typing import Literal
 from enum import Enum
-import time
+import logging
 import asyncio
 import click
+import time
 import os
 import io
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -66,6 +70,52 @@ async def lifespan(app: FastMCP):
 
 
 mcp = FastMCP(name="windows-mcp", instructions=instructions, lifespan=lifespan)
+
+
+def _resolve_element_location(
+    element_name: str, window_title: str | None = None
+) -> tuple[int, int]:
+    """Find a UI element by name and return its center coordinates.
+
+    Uses Windows UI Automation to locate the element. Optionally scoped
+    to a specific window by title (substring match).
+
+    Args:
+        element_name: The Name property of the UI element to find (exact match).
+        window_title: Window title substring to scope the search.
+
+    Returns:
+        Tuple of (x, y) center coordinates ready for clicking.
+
+    Raises:
+        ValueError: If the element or window cannot be found.
+    """
+    if window_title:
+        search_root = uia.WindowControl(SubName=window_title)
+        if not search_root.Exists(maxSearchSeconds=3):
+            raise ValueError(
+                f"Window matching '{window_title}' not found. "
+                f"Check that the window is open and visible."
+            )
+    else:
+        search_root = None
+
+    element = uia.Control(searchFromControl=search_root, Name=element_name)
+    if not element.Exists(maxSearchSeconds=3):
+        scope_msg = f" in window '{window_title}'" if window_title else ""
+        raise ValueError(
+            f"Element '{element_name}' not found{scope_msg}. "
+            f"Verify the element name is correct and visible on screen."
+        )
+
+    rect = element.BoundingRectangle
+    if rect.width() == 0 or rect.height() == 0:
+        raise ValueError(
+            f"Element '{element_name}' found but has zero size "
+            f"(may be off-screen or collapsed)."
+        )
+
+    return (rect.xcenter(), rect.ycenter())
 
 
 @mcp.tool(
@@ -235,7 +285,14 @@ def state_tool(use_vision:bool|str=False,use_dom:bool|str=False, ctx: Context = 
 
 @mcp.tool(
     name="Click",
-    description="Performs mouse clicks at specified coordinates [x, y]. Supports button types: 'left' for selection/activation, 'right' for context menus, 'middle'. Supports clicks: 0=hover only (no click), 1=single click (select/focus), 2=double click (open/activate).",
+    description=(
+        "Performs mouse clicks at specified coordinates [x, y]. "
+        "Supports button types: 'left' for selection/activation, 'right' for context menus, 'middle'. "
+        "Supports clicks: 0=hover only (no click), 1=single click (select/focus), 2=double click (open/activate). "
+        "Optionally: pass element_name to find and click a UI element by its accessible name "
+        "(using Windows UI Automation), no coordinates needed. "
+        "Use window_title to scope the search to a specific window."
+    ),
     annotations=ToolAnnotations(
         title="Click",
         readOnlyHint=False,
@@ -246,17 +303,26 @@ def state_tool(use_vision:bool|str=False,use_dom:bool|str=False, ctx: Context = 
 )
 @with_analytics(analytics, "Click-Tool")
 def click_tool(
-    loc: list[int],
+    loc: list[int] | None = None,
     button: Literal["left", "right", "middle"] = "left",
     clicks: int = 1,
+    element_name: str | None = None,
+    window_title: str | None = None,
     ctx: Context = None,
 ) -> str:
-    if len(loc) != 2:
+    if element_name:
+        x, y = _resolve_element_location(element_name, window_title)
+        loc = [x, y]
+    elif loc is None:
+        raise ValueError("Either loc [x, y] or element_name must be provided.")
+    elif len(loc) != 2:
         raise ValueError("Location must be a list of exactly 2 integers [x, y]")
-    x, y = loc[0], loc[1]
+    else:
+        x, y = loc[0], loc[1]
     desktop.click(loc=loc, button=button, clicks=clicks)
     num_clicks = {0: "Hover", 1: "Single", 2: "Double"}
-    return f"{num_clicks.get(clicks)} {button} clicked at ({x},{y})."
+    source = f" (element: '{element_name}')" if element_name else ""
+    return f"{num_clicks.get(clicks)} {button} clicked at ({x},{y}){source}."
 
 
 @mcp.tool(
@@ -325,7 +391,14 @@ def scroll_tool(
 
 @mcp.tool(
     name="Move",
-    description="Moves mouse cursor to coordinates [x, y]. Set drag=True to perform a drag-and-drop operation from the current mouse position to the target coordinates. Default (drag=False) is a simple cursor move (hover).",
+    description=(
+        "Moves mouse cursor to coordinates [x, y]. "
+        "Set drag=True to perform a drag-and-drop operation from the current mouse position "
+        "to the target coordinates. Default (drag=False) is a simple cursor move (hover). "
+        "Optionally: pass element_name to move to a UI element by its accessible name "
+        "(using Windows UI Automation), no coordinates needed. "
+        "Use window_title to scope the search to a specific window."
+    ),
     annotations=ToolAnnotations(
         title="Move",
         readOnlyHint=False,
@@ -335,17 +408,30 @@ def scroll_tool(
     ),
 )
 @with_analytics(analytics, "Move-Tool")
-def move_tool(loc: list[int], drag: bool | str = False, ctx: Context = None) -> str:
+def move_tool(
+    loc: list[int] | None = None,
+    drag: bool | str = False,
+    element_name: str | None = None,
+    window_title: str | None = None,
+    ctx: Context = None,
+) -> str:
     drag = drag is True or (isinstance(drag, str) and drag.lower() == "true")
-    if len(loc) != 2:
+    if element_name:
+        x, y = _resolve_element_location(element_name, window_title)
+        loc = [x, y]
+    elif loc is None:
+        raise ValueError("Either loc [x, y] or element_name must be provided.")
+    elif len(loc) != 2:
         raise ValueError("loc must be a list of exactly 2 integers [x, y]")
-    x, y = loc[0], loc[1]
+    else:
+        x, y = loc[0], loc[1]
+    source = f" (element: '{element_name}')" if element_name else ""
     if drag:
         desktop.drag(loc)
-        return f"Dragged to ({x},{y})."
+        return f"Dragged to ({x},{y}){source}."
     else:
         desktop.move(loc)
-        return f"Moved the mouse pointer to ({x},{y})."
+        return f"Moved the mouse pointer to ({x},{y}){source}."
 
 
 @mcp.tool(
