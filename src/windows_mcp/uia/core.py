@@ -1597,18 +1597,24 @@ def SetThreadDpiAwarenessContext(dpiAwarenessContext: int):
 
 def SetProcessDpiAwareness(dpiAwareness: int):
     """
-    ProcessDpiAwareness from Win32.
+    Set process DPI awareness so UIA coordinates (BoundingRectangle, Click, MoveTo, etc.)
+    use physical pixels consistently. Required for correct behavior on scaled displays.
+
     dpiAwareness: int, a value in class `ProcessDpiAwareness`
     """
     try:
         # https://docs.microsoft.com/en-us/windows/win32/api/shellscalingapi/nf-shellscalingapi-setprocessdpiawareness
-        # Once SetProcessDpiAwareness is set for an app, any future calls to SetProcessDpiAwareness will fail.
-        # Windows 8.1+
+        # Once set, any future calls will fail. Windows 8.1+
         return ctypes.windll.shcore.SetProcessDpiAwareness(dpiAwareness)
     except Exception:
-        pass
+        try:
+            # Fallback for Windows 7 / older: system DPI aware (no per-monitor)
+            ctypes.windll.user32.SetProcessDPIAware()
+        except Exception:
+            pass
 
 
+# Ensure DPI-aware coordinates at module load (before any UIA calls)
 SetProcessDpiAwareness(ProcessDpiAwareness.PerMonitorDpiAware)
 
 

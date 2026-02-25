@@ -48,7 +48,7 @@ The codebase follows a layered service architecture under `src/windows_mcp/`:
 ## Key Design Details
 
 - Screenshots are capped to 1920x1080 for token efficiency
-- `pyautogui.FAILSAFE` is disabled; `PAUSE` is set to 1.0s between actions
+- Mouse/keyboard input uses UIA (same coordinate space as BoundingRectangle; no DPI mismatch)
 - Browser detection (Chrome, Edge, Firefox) triggers special DOM extraction mode in Snapshot
 - Fuzzy string matching (`thefuzz`) is used for element name matching
 - UI element fetching has retry logic (`THREAD_MAX_RETRIES=3` in tree service)

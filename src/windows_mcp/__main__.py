@@ -1,20 +1,20 @@
 from windows_mcp.analytics import PostHogAnalytics, with_analytics
+from fastmcp.client.transports import StreamableHttpTransport
+from fastmcp.server.providers.proxy import ProxyClient
 from windows_mcp.desktop.service import Desktop, Size
 from windows_mcp.watchdog.service import WatchDog
-from fastmcp.client.transports import StreamableHttpTransport
-from fastmcp.server.proxy import ProxyClient
 from contextlib import asynccontextmanager
 from fastmcp.utilities.types import Image
 from dataclasses import dataclass, field
 from windows_mcp.auth import AuthClient
 from mcp.types import ToolAnnotations
-from typing import Literal
 from fastmcp import FastMCP, Context
 from windows_mcp import filesystem
 from dotenv import load_dotenv
 from textwrap import dedent
-import pyautogui as pg
+from typing import Literal
 from enum import Enum
+import time
 import asyncio
 import click
 import os
@@ -29,8 +29,6 @@ class Config:
     api_key: str = field(default='')
 
 MAX_IMAGE_WIDTH, MAX_IMAGE_HEIGHT = 1920, 1080
-pg.FAILSAFE = False
-pg.PAUSE = 1.0
 
 desktop: Desktop | None = None
 watchdog: WatchDog | None = None
@@ -380,7 +378,7 @@ def shortcut_tool(shortcut: str, ctx: Context = None):
 )
 @with_analytics(analytics, "Wait-Tool")
 def wait_tool(duration: int, ctx: Context = None) -> str:
-    pg.sleep(duration)
+    time.sleep(duration)
     return f"Waited for {duration} seconds."
 
 
@@ -692,7 +690,6 @@ def main(transport, host, port):
                     raise ValueError(f"Invalid transport: {transport}")
         case _:
             raise ValueError(f"Invalid mode: {config.mode}")
-
 
 if __name__ == "__main__":
     main()

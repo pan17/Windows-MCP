@@ -4,7 +4,6 @@ from windows_mcp.vdm.core import (
     is_window_on_current_desktop,
 )
 from windows_mcp.desktop.views import DesktopState, Window, Browser, Status, Size
-from windows_mcp.desktop.config import PROCESS_PER_MONITOR_DPI_AWARE
 from windows_mcp.tree.views import BoundingBox, TreeElementNode
 from concurrent.futures import ThreadPoolExecutor
 from PIL import ImageGrab, ImageFont, ImageDraw, Image
@@ -14,7 +13,7 @@ from contextlib import contextmanager
 from typing import Literal
 from markdownify import markdownify
 from thefuzz import process
-from time import time
+from time import sleep, time
 from psutil import Process
 import win32process
 import subprocess
@@ -33,16 +32,36 @@ import random
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-try:
-    ctypes.windll.shcore.SetProcessDpiAwareness(PROCESS_PER_MONITOR_DPI_AWARE)
-except Exception:
-    ctypes.windll.user32.SetProcessDPIAware()
-
 import windows_mcp.uia as uia  # noqa: E402
-import pyautogui as pg  # noqa: E402
 
-pg.FAILSAFE = False
-pg.PAUSE = 1.0
+# Key name aliases for shortcut keys that differ from UIA SpecialKeyNames
+_KEY_ALIASES = {
+    "backspace": "Back",
+    "capslock": "Capital",
+    "scrolllock": "Scroll",
+    "windows": "Win",
+    "command": "Win",
+    "option": "Alt",
+}
+
+
+def _escape_text_for_sendkeys(text: str) -> str:
+    """Escape special characters so uia.SendKeys types them correctly."""
+    result = []
+    for ch in text:
+        if ch == "{":
+            result.append("{{}")
+        elif ch == "}":
+            result.append("{}}")
+        elif ch == "\n":
+            result.append("{Enter}")
+        elif ch == "\t":
+            result.append("{Tab}")
+        elif ch == "\r":
+            continue
+        else:
+            result.append(ch)
+    return "".join(result)
 
 
 class Desktop:
@@ -154,8 +173,7 @@ class Desktop:
             return Status.HIDDEN
 
     def get_cursor_location(self) -> tuple[int, int]:
-        position = pg.position()
-        return (position.x, position.y)
+        return uia.GetCursorPos()
 
     def get_element_under_cursor(self) -> uia.Control:
         return uia.ControlFromCursor()
@@ -457,7 +475,23 @@ class Desktop:
 
     def click(self, loc: tuple[int, int], button: str = "left", clicks: int = 2):
         x, y = loc
-        pg.click(x, y, button=button, clicks=clicks, duration=0.1)
+        if clicks == 0:
+            uia.SetCursorPos(x, y)
+            return
+        match button:
+            case "left":
+                if clicks >= 2:
+                    dbl_wait = uia.GetDoubleClickTime() / 2000.0
+                    for i in range(clicks):
+                        uia.Click(x, y, waitTime=dbl_wait if i < clicks - 1 else 0.5)
+                else:
+                    uia.Click(x, y)
+            case "right":
+                for _ in range(clicks):
+                    uia.RightClick(x, y)
+            case "middle":
+                for _ in range(clicks):
+                    uia.MiddleClick(x, y)
 
     def type(
         self,
@@ -468,24 +502,19 @@ class Desktop:
         press_enter: bool | str = False,
     ):
         x, y = loc
-        pg.leftClick(x, y)
+        uia.Click(x, y)
         if caret_position == "start":
-            pg.press("home")
+            uia.SendKeys("{Home}", waitTime=0.05)
         elif caret_position == "end":
-            pg.press("end")
-        else:
-            pass
-
-        # Handle both boolean and string 'true'/'false'
+            uia.SendKeys("{End}", waitTime=0.05)
         if clear is True or (isinstance(clear, str) and clear.lower() == "true"):
-            pg.sleep(0.5)
-            pg.hotkey("ctrl", "a")
-            pg.press("backspace")
-
-        pg.typewrite(text, interval=0.02)
-
+            sleep(0.5)
+            uia.SendKeys("{Ctrl}a", waitTime=0.05)
+            uia.SendKeys("{Back}", waitTime=0.05)
+        escaped_text = _escape_text_for_sendkeys(text)
+        uia.SendKeys(escaped_text, interval=0.02, waitTime=0.05)
         if press_enter is True or (isinstance(press_enter, str) and press_enter.lower() == "true"):
-            pg.press("enter")
+            uia.SendKeys("{Enter}", waitTime=0.05)
 
     def scroll(
         self,
@@ -508,17 +537,15 @@ class Desktop:
             case "horizontal":
                 match direction:
                     case "left":
-                        pg.keyDown("Shift")
-                        pg.sleep(0.05)
+                        uia.PressKey(uia.Keys.VK_SHIFT, waitTime=0.05)
                         uia.WheelUp(wheel_times)
-                        pg.sleep(0.05)
-                        pg.keyUp("Shift")
+                        sleep(0.05)
+                        uia.ReleaseKey(uia.Keys.VK_SHIFT, waitTime=0.05)
                     case "right":
-                        pg.keyDown("Shift")
-                        pg.sleep(0.05)
+                        uia.PressKey(uia.Keys.VK_SHIFT, waitTime=0.05)
                         uia.WheelDown(wheel_times)
-                        pg.sleep(0.05)
-                        pg.keyUp("Shift")
+                        sleep(0.05)
+                        uia.ReleaseKey(uia.Keys.VK_SHIFT, waitTime=0.05)
                     case _:
                         return 'Invalid direction. Use "left" or "right".'
             case _:
@@ -527,31 +554,37 @@ class Desktop:
 
     def drag(self, loc: tuple[int, int]):
         x, y = loc
-        pg.sleep(0.5)
-        pg.dragTo(x, y, duration=0.6)
+        sleep(0.5)
+        cx, cy = uia.GetCursorPos()
+        uia.DragDrop(cx, cy, x, y, moveSpeed=1)
 
     def move(self, loc: tuple[int, int]):
         x, y = loc
-        pg.moveTo(x, y, duration=0.1)
+        uia.MoveTo(x, y, moveSpeed=10)
 
     def shortcut(self, shortcut: str):
-        shortcut = shortcut.split("+")
-        if len(shortcut) > 1:
-            pg.hotkey(*shortcut)
-        else:
-            pg.press("".join(shortcut))
+        keys = shortcut.split("+")
+        sendkeys_str = ""
+        for key in keys:
+            key = key.strip()
+            if len(key) == 1:
+                sendkeys_str += key
+            else:
+                name = _KEY_ALIASES.get(key.lower(), key)
+                sendkeys_str += "{" + name + "}"
+        uia.SendKeys(sendkeys_str, interval=0.01)
 
     def multi_select(self, press_ctrl: bool | str = False, locs: list[tuple[int, int]] = []):
         press_ctrl = press_ctrl is True or (
             isinstance(press_ctrl, str) and press_ctrl.lower() == "true"
         )
         if press_ctrl:
-            pg.keyDown("ctrl")
+            uia.PressKey(uia.Keys.VK_CONTROL, waitTime=0.05)
         for loc in locs:
             x, y = loc
-            pg.click(x, y, duration=0.2)
-            pg.sleep(0.5)
-        pg.keyUp("ctrl")
+            uia.Click(x, y, waitTime=0.2)
+            sleep(0.5)
+        uia.ReleaseKey(uia.Keys.VK_CONTROL, waitTime=0.05)
 
     def multi_edit(self, locs: list[tuple[int, int, str]]):
         for loc in locs:
@@ -813,7 +846,7 @@ class Desktop:
             return ImageGrab.grab(all_screens=True)
         except Exception:
             logger.warning("Failed to capture virtual screen, using primary screen")
-            return pg.screenshot()
+            return ImageGrab.grab()
 
     def get_annotated_screenshot(self, nodes: list[TreeElementNode]) -> Image.Image:
         screenshot = self.get_screenshot()
