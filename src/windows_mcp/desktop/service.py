@@ -268,7 +268,21 @@ class Desktop:
             pg.sleep(0.5)
             pg.hotkey('ctrl','a')
             pg.press('backspace')
-        pg.typewrite(text,interval=0.02)
+        
+        # Check if text contains non-ASCII characters (e.g., Chinese)
+        if any(ord(char) > 127 for char in text):
+            # Use clipboard for non-ASCII text (e.g., Chinese)
+            import pyperclip
+            original_clipboard = pyperclip.paste()
+            pyperclip.copy(text)
+            pg.sleep(0.1)
+            pg.hotkey('ctrl', 'v')
+            pg.sleep(0.2)  # Wait for paste to complete
+            pyperclip.copy(original_clipboard)  # Restore original clipboard content
+        else:
+            # Use typewrite for ASCII text
+            pg.typewrite(text, interval=0.02)
+        
         if press_enter=='true':
             pg.press('enter')
 
