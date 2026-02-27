@@ -21,15 +21,16 @@
 
 <br>
 
-**Windows MCP** is a lightweight, open-source project that enables seamless integration between AI agents and the Windows operating system. Acting as an MCP server bridges the gap between LLMs and the Windows operating system, allowing agents to perform tasks such as **file navigation, application control, UI interaction, QA testing,** and more.
+**Windows-MCP** is a lightweight, open-source project that enables seamless integration between AI agents and the Windows operating system. Acting as an MCP server bridges the gap between LLMs and the Windows operating system, allowing agents to perform tasks such as **file navigation, application control, UI interaction, QA testing,** and more.
 
 mcp-name: io.github.CursorTouch/Windows-MCP
 
 ## Updates
-- Windows-MCP is now available on [PyPI](https://pypi.org/project/windows-mcp/) (thus supports `uvx`)
+- Added VM support for Windows-MCP. Check (windowsmcp.io)[https://windowsmcp.io/] for more details.
+- Windows-MCP reached `2M+ Users` in [Claude Desktop Extensiosn](https://claude.ai/directory). 
+- Try out [🪟Windows-Use](https://pypi.org/project/windows-use/), an agent built using Windows-MCP.
+- Windows-MCP is now available on [PyPI](https://pypi.org/project/windows-mcp/) (thus supports `uvx windows-mcp`)
 - Windows-MCP is added to [MCP Registry](https://github.com/modelcontextprotocol/registry)
-- Try out 🪟[Windows-Use](https://github.com/CursorTouch/Windows-Use)!!, an agent built using Windows-MCP.
-- Windows-MCP is now featured as Desktop Extension in `Claude Desktop`.
 
 ### Supported Operating Systems
 
@@ -50,7 +51,7 @@ mcp-name: io.github.CursorTouch/Windows-MCP
   Interacts natively with Windows UI elements, opens apps, controls windows, simulates user input, and more.
 
 - **Use Any LLM (Vision Optional)**
-   Unlike many automation tools, Windows MCP doesn't rely on any traditional computer vision techniques or specific fine-tuned models; it works with any LLMs, reducing complexity and setup time.
+   Unlike many automation tools, Windows-MCP doesn't rely on any traditional computer vision techniques or specific fine-tuned models; it works with any LLMs, reducing complexity and setup time.
 
 - **Rich Toolset for UI Automation**  
   Includes tools for basic keyboard, mouse operation and capturing window/UI state.
@@ -62,19 +63,20 @@ mcp-name: io.github.CursorTouch/Windows-MCP
   Easily adapt or extend tools to suit your unique automation or AI integration needs.
 
 - **Real-Time Interaction**  
-  Typical latency between actions (e.g., from one mouse click to the next) ranges from **0.7 to 2.5 secs**, and may slightly vary based on the number of active applications and system load, also the inferencing speed of the llm.
+  Typical latency between actions (e.g., from one mouse click to the next) ranges from **0.2 to 0.9 secs**, and may slightly vary based on the number of active applications and system load, also the inferencing speed of the llm.
 
 - **DOM Mode for Browser Automation**  
   Special `use_dom=True` mode for State-Tool that focuses exclusively on web page content, filtering out browser UI elements for cleaner, more efficient web automation.
 
 ## 🛠️Installation
 
+**Note:** When you install this MCP server for the first time it may take a minute or two because of installing the dependencies in `pyproject.toml`. In the first run the server may timeout ignore it and restart it.
+
 ### Prerequisites
 
 - Python 3.13+
 - UV (Package Manager) from Astra, install with `pip install uv` or `curl -LsSf https://astral.sh/uv/install.sh | sh`
-- `English` as the default language in Windows highly preferred or disable the `App-Tool` in the MCP Server for Windows with other languages.
-
+- `English` as the default language in Windows preferred else disable the `App-Tool` in the MCP Server for Windows with other languages.
 <details>
   <summary>Install in Claude Desktop</summary>
 
@@ -137,7 +139,33 @@ npm install -g @anthropic-ai/mcpb
 
   5. Enjoy 🥳.
 
-For additional Claude Desktop integration troubleshooting, see the [MCP documentation](https://modelcontextprotocol.io/quickstart/server#claude-for-desktop-integration-issues). The documentation includes helpful tips for checking logs and resolving common issues.
+  **Claude Desktop MSIX (Windows Store)**
+
+  The MSIX-packaged Claude Desktop virtualizes `%APPDATA%`. Config lives at:
+  `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json`
+  (not `%APPDATA%\Claude\`). The "Edit Config" button may open the wrong file.
+
+  Electron apps also do not inherit PATH, so `uv`/`uvx` can fail with `spawn ENOENT`. Use the **full absolute path** to `uv.exe`:
+
+  ```json
+  {
+    "mcpServers": {
+      "windows-mcp": {
+        "command": "C:\\Users\\<user>\\.local\\bin\\uv.exe",
+        "args": [
+          "--directory",
+          "C:\\Users\\<user>\\AppData\\Local\\Packages\\Claude_pzs8sxrjxfjjc\\LocalCache\\Roaming\\Claude\\Claude Extensions\\ant.dir.cursortouch.windows-mcp",
+          "run",
+          "windows-mcp"
+        ]
+      }
+    }
+  }
+  ```
+
+  Replace `<user>` with your username. To find `uv.exe`, run `where uv` in a terminal; common location is `%USERPROFILE%\.local\bin\uv.exe`. For PyPI install, use `args: ["run", "windows-mcp"]` instead of `--directory`/path. Save as **UTF-8 without BOM** (PowerShell `Set-Content -Encoding UTF8` adds a BOM that breaks the JSON parser).
+
+  For additional Claude Desktop integration troubleshooting, see the [MCP documentation](https://modelcontextprotocol.io/quickstart/server#claude-for-desktop-integration-issues).
 </details>
 
 <details>
@@ -290,21 +318,89 @@ args=[
 
 ---
 
+## 🖥️ Modes
+
+Windows-MCP supports two operating modes: **Local** (default) and **Remote**.
+
+### Local Mode (Default)
+
+In local mode, Windows-MCP runs directly on your Windows machine and exposes its tools to the connected MCP client. This is the standard setup for personal use.
+
+```shell
+# Runs with stdio transport (default)
+uvx windows-mcp
+
+# Or with SSE/Streamable HTTP for network access
+uvx windows-mcp --transport sse --host localhost --port 8000
+uvx windows-mcp --transport streamable-http --host localhost --port 8000
+```
+
+No additional environment variables are needed. The MCP client connects directly to the server.
+
+### Remote Mode
+
+In remote mode, Windows-MCP acts as a **proxy** that connects to the [windowsmcp.io](https://windowsmcp.io) enabling cloud-hosted Windows automation. This is designed for scenarios where the MCP client is remote and connects through the dashboard, which routes requests to a Windows VM running Windows-MCP.
+
+**Required environment variables:**
+
+| Variable | Description |
+|---|---|
+| `MODE` | Set to `remote` |
+| `SANDBOX_ID` | The sandbox/VM identifier from the dashboard |
+| `API_KEY` | Your Windows-MCP API key |
+
+**Example configuration:**
+
+```json
+{
+  "mcpServers": {
+    "windows-mcp": {
+      "command": "uvx",
+      "args": [
+        "windows-mcp"
+      ],
+      "env": {
+        "MODE": "remote",
+        "SANDBOX_ID": "your-sandbox-id",
+        "API_KEY": "your-api-key"
+      }
+    }
+  }
+}
+```
+
+### Transport Options
+
+| Transport | Flag | Use Case |
+|---|---|---|
+| `stdio` (default) | `--transport stdio` | Direct connection from MCP clients like Claude Desktop, Cursor, etc. |
+| `sse` | `--transport sse --host HOST --port PORT` | Network-accessible via Server-Sent Events |
+| `streamable-http` | `--transport streamable-http --host HOST --port PORT` | Network-accessible via HTTP streaming (recommended for production) |
+
+---
+
 ## 🔨MCP Tools
 
 MCP Client can access the following tools to interact with Windows:
 
-- `Click-Tool`: Click on the screen at the given coordinates.
-- `Type-Tool`: Type text on an element (optionally clears existing text).
-- `Scroll-Tool`: Scroll vertically or horizontally on the window or specific regions.
-- `Drag-Tool`: Drag from one point to another.
-- `Move-Tool`: Move mouse pointer.
-- `Shortcut-Tool`: Press keyboard shortcuts (`Ctrl+c`, `Alt+Tab`, etc).
-- `Wait-Tool`: Pause for a defined duration.
-- `State-Tool`: Combined snapshot of default language, browser, active apps and interactive, textual and scrollable elements along with screenshot of the desktop. Supports `use_dom=True` for browser content extraction (web page elements only) and `use_vision=True` for including screenshots.
-- `App-Tool`: To launch an application from the start menu, resize or move the window and switch between apps.
-- `Shell-Tool`: To execute PowerShell commands.
-- `Scrape-Tool`: To scrape the entire webpage for information.
+- `Click`: Click on the screen at the given coordinates.
+- `Type`: Type text on an element (optionally clears existing text).
+- `Scroll`: Scroll vertically or horizontally on the window or specific regions.
+- `Move`: Move mouse pointer or drag (set drag=True) to coordinates.
+- `Shortcut`: Press keyboard shortcuts (`Ctrl+c`, `Alt+Tab`, etc).
+- `Wait`: Pause for a defined duration.
+- `Snapshot`: Combined snapshot of default language, browser, active apps and interactive, textual and scrollable elements along with screenshot of the desktop. Supports `use_dom=True` for browser content extraction (web page elements only) and `use_vision=True` for including screenshots.
+- `App`: To launch an application from the start menu, resize or move the window and switch between apps.
+- `Shell`: To execute PowerShell commands.
+- `Scrape`: To scrape the entire webpage for information.
+- `MultiSelect`: Select multiple items (files, folders, checkboxes) with optional Ctrl key.
+- `MultiEdit`: Enter text into multiple input fields at specified coordinates.
+- `Clipboard`: Read or set Windows clipboard content.
+- `Process`: List running processes or terminate them by PID or name.
+- `SystemInfo`: Get system information including CPU, memory, disk, network stats, and uptime.
+- `Notification`: Send a Windows toast notification with a title and message.
+- `LockScreen`: Lock the Windows workstation.
+- `Registry`: Read, write, delete, or list Windows Registry values and keys.
 
 ## 🤝 Connect with Us
 Stay updated and join our community:
@@ -317,9 +413,15 @@ Stay updated and join our community:
 
 [![Star History Chart](https://api.star-history.com/svg?repos=CursorTouch/Windows-MCP&type=Date)](https://www.star-history.com/#CursorTouch/Windows-MCP&Date)
 
-## ⚠️Caution
+## 👥 Contributors
 
-This MCP interacts directly with your Windows operating system to perform actions. Use with caution and avoid deploying it in environments where such risks cannot be tolerated.
+Thanks to all the amazing people who have contributed to Windows-MCP! 🎉
+
+<a href="https://github.com/CursorTouch/Windows-MCP/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=CursorTouch/Windows-MCP" />
+</a>
+
+We appreciate every contribution, whether it's code, documentation, bug reports, or feature suggestions. Want to contribute? Check out our [Contributing Guidelines](CONTRIBUTING)!
 
 ## 🔒 Security
 
@@ -354,6 +456,8 @@ To disable telemetry, add the following to your MCP client configuration:
   }
 }
 ```
+
+For detailed information on what data is collected and how it is handled, please refer to the [Telemetry and Data Privacy](SECURITY.md#telemetry-and-data-privacy) section in our Security Policy.
 
 ## 📝 Limitations
 
