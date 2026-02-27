@@ -139,7 +139,33 @@ npm install -g @anthropic-ai/mcpb
 
   5. Enjoy 🥳.
 
-For additional Claude Desktop integration troubleshooting, see the [MCP documentation](https://modelcontextprotocol.io/quickstart/server#claude-for-desktop-integration-issues). The documentation includes helpful tips for checking logs and resolving common issues.
+  **Claude Desktop MSIX (Windows Store)**
+
+  The MSIX-packaged Claude Desktop virtualizes `%APPDATA%`. Config lives at:
+  `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json`
+  (not `%APPDATA%\Claude\`). The "Edit Config" button may open the wrong file.
+
+  Electron apps also do not inherit PATH, so `uv`/`uvx` can fail with `spawn ENOENT`. Use the **full absolute path** to `uv.exe`:
+
+  ```json
+  {
+    "mcpServers": {
+      "windows-mcp": {
+        "command": "C:\\Users\\<user>\\.local\\bin\\uv.exe",
+        "args": [
+          "--directory",
+          "C:\\Users\\<user>\\AppData\\Local\\Packages\\Claude_pzs8sxrjxfjjc\\LocalCache\\Roaming\\Claude\\Claude Extensions\\ant.dir.cursortouch.windows-mcp",
+          "run",
+          "windows-mcp"
+        ]
+      }
+    }
+  }
+  ```
+
+  Replace `<user>` with your username. To find `uv.exe`, run `where uv` in a terminal; common location is `%USERPROFILE%\.local\bin\uv.exe`. For PyPI install, use `args: ["run", "windows-mcp"]` instead of `--directory`/path. Save as **UTF-8 without BOM** (PowerShell `Set-Content -Encoding UTF8` adds a BOM that breaks the JSON parser).
+
+  For additional Claude Desktop integration troubleshooting, see the [MCP documentation](https://modelcontextprotocol.io/quickstart/server#claude-for-desktop-integration-issues).
 </details>
 
 <details>
