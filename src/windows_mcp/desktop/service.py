@@ -1,3 +1,4 @@
+from windows_mcp.desktop.utils import ps_quote, ps_quote_for_xml
 from windows_mcp.vdm.core import (
     get_all_desktops,
     get_current_desktop,
@@ -69,17 +70,6 @@ class Desktop:
         self.encoding = getpreferredencoding()
         self.tree = Tree(self)
         self.desktop_state = None
-
-    @staticmethod
-    def _ps_quote(value: str) -> str:
-        """Wrap a value in a PowerShell single-quoted string literal.
-
-        Single-quoted strings in PowerShell are truly literal -- they do NOT
-        expand variables ($env:X), subexpressions ($(…)), or escape sequences.
-        The only character that needs escaping is the single quote itself,
-        which is doubled ('').
-        """
-        return "'" + value.replace("'", "''") + "'"
 
     def get_state(
         self,
@@ -353,7 +343,7 @@ class Desktop:
 
         pid = 0
         if os.path.exists(appid) or "\\" in appid:
-            safe = self._ps_quote(appid)
+            safe = ps_quote(appid)
             command = f"Start-Process {safe} -PassThru | Select-Object -ExpandProperty Id"
             response, status = self.execute_command(command)
             if status == 0 and response.strip().isdigit():
@@ -367,7 +357,7 @@ class Desktop:
                 .isalnum()
             ):
                 return (f"Invalid app identifier: {appid}", 1, 0)
-            safe = self._ps_quote(f"shell:AppsFolder\\{appid}")
+            safe = ps_quote(f"shell:AppsFolder\\{appid}")
             command = f"Start-Process {safe}"
             response, status = self.execute_command(command)
 
@@ -910,16 +900,14 @@ class Desktop:
         return padded_screenshot
 
     def send_notification(self, title: str, message: str) -> str:
-        from xml.sax.saxutils import escape as xml_escape
-
-        safe_title = xml_escape(title, {'"': '&quot;', "'": '&apos;'})
-        safe_message = xml_escape(message, {'"': '&quot;', "'": '&apos;'})
+        safe_title = ps_quote_for_xml(title)
+        safe_message = ps_quote_for_xml(message)
 
         ps_script = (
             "[Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null\n"
             "[Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null\n"
-            f"$notifTitle = {self._ps_quote(safe_title)}\n"
-            f"$notifMessage = {self._ps_quote(safe_message)}\n"
+            f"$notifTitle = {safe_title}\n"
+            f"$notifMessage = {safe_message}\n"
             '$template = @"\n'
             "<toast>\n"
             "    <visual>\n"
@@ -1053,8 +1041,8 @@ class Desktop:
   Uptime: {uptime_str} (booted {boot.strftime("%Y-%m-%d %H:%M")})""")
 
     def registry_get(self, path: str, name: str) -> str:
-        q_path = self._ps_quote(path)
-        q_name = self._ps_quote(name)
+        q_path = ps_quote(path)
+        q_name = ps_quote(name)
         command = f"Get-ItemProperty -Path {q_path} -Name {q_name} | Select-Object -ExpandProperty {q_name}"
         response, status = self.execute_command(command)
         if status != 0:
@@ -1062,9 +1050,9 @@ class Desktop:
         return f'Registry value [{path}] "{name}" = {response.strip()}'
 
     def registry_set(self, path: str, name: str, value: str, reg_type: str = 'String') -> str:
-        q_path = self._ps_quote(path)
-        q_name = self._ps_quote(name)
-        q_value = self._ps_quote(value)
+        q_path = ps_quote(path)
+        q_name = ps_quote(name)
+        q_value = ps_quote(value)
         allowed_types = {"String", "ExpandString", "Binary", "DWord", "MultiString", "QWord"}
         if reg_type not in allowed_types:
             return f"Error: invalid registry type '{reg_type}'. Allowed: {', '.join(sorted(allowed_types))}"
@@ -1078,9 +1066,9 @@ class Desktop:
         return f'Registry value [{path}] "{name}" set to "{value}" (type: {reg_type}).'
 
     def registry_delete(self, path: str, name: str | None = None) -> str:
-        q_path = self._ps_quote(path)
+        q_path = ps_quote(path)
         if name:
-            q_name = self._ps_quote(name)
+            q_name = ps_quote(name)
             command = f"Remove-ItemProperty -Path {q_path} -Name {q_name} -Force"
             response, status = self.execute_command(command)
             if status != 0:
@@ -1094,7 +1082,7 @@ class Desktop:
             return f'Registry key [{path}] deleted.'
 
     def registry_list(self, path: str) -> str:
-        q_path = self._ps_quote(path)
+        q_path = ps_quote(path)
         command = (
             f"$values = (Get-ItemProperty -Path {q_path} -ErrorAction Stop | "
             f"Select-Object * -ExcludeProperty PS* | Format-List | Out-String).Trim(); "
